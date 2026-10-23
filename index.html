@@ -1,815 +1,190 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Chess Game with Smart AI</title>
-    <style>
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            margin: 0;
-            padding: 20px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-        }
-
-        .container {
-            background: white;
-            border-radius: 15px;
-            padding: 30px;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.2);
-            max-width: 700px;
-            width: 100%;
-            animation: fadeIn 0.5s ease-in;
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        h1 {
-            text-align: center;
-            color: #333;
-            margin-bottom: 30px;
-            font-size: 2.5rem;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
-        }
-
-        .game-info {
-            text-align: center;
-            margin-bottom: 20px;
-            padding: 15px;
-            background: linear-gradient(135deg, #f0f0f0 0%, #e8e8e8 100%);
-            border-radius: 10px;
-            display: flex;
-            justify-content: space-between;
-            flex-wrap: wrap;
-            box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
-        }
-
-        .info-section {
-            margin: 5px;
-            padding: 8px 15px;
-            background: white;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            font-weight: bold;
-            color: #333;
-        }
-
-        .game-mode, .time-control-row {
-            text-align: center;
-            margin: 15px 0;
-            padding: 15px;
-            background: rgba(255,255,255,0.9);
-            border-radius: 10px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-        }
-
-        .game-mode label, .time-control-row label {
-            font-weight: bold;
-            margin-right: 10px;
-            color: #333;
-        }
-
-        .game-mode select, .time-control-row select {
-            padding: 8px 15px;
-            font-size: 14px;
-            border-radius: 8px;
-            border: 2px solid #667eea;
-            background: white;
-            color: #333;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            font-weight: bold;
-        }
-
-        .game-mode select:hover, .time-control-row select:hover {
-            border-color: #5a6fd8;
-            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
-        }
-
-        .game-mode select:focus, .time-control-row select:focus {
-            outline: none;
-            border-color: #4f5cd1;
-            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2);
-        }
-
-        /* ========== CLOCK STYLES ========== */
-        .clocks {
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-            margin: 20px 0;
-        }
-
-        .clock-row {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 6px 10px;
-            gap: 15px;
-        }
-
-        .clock-label {
-            font-weight: bold;
-            font-size: 15px;
-            letter-spacing: 1px;
-            text-transform: uppercase;
-            color: #333;
-            min-width: 60px;
-        }
-
-        .clock {
-            font-family: 'Courier New', monospace;
-            font-size: 26px;
-            font-weight: bold;
-            letter-spacing: 2px;
-            padding: 10px 20px;
-            background: linear-gradient(135deg, #f5f5f5 0%, #e8e8e8 100%);
-            border-radius: 10px;
-            border: 2px solid #ddd;
-            transition: all 0.3s ease;
-            min-width: 120px;
-            text-align: center;
-            color: #333;
-        }
-
-        .clock.active {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border-color: #4a5bb8;
-            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
-            transform: scale(1.02);
-        }
-
-        .clock.low {
-            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%) !important;
-            color: white !important;
-            border-color: #c0392b !important;
-            animation: lowPulse 1s infinite;
-        }
-
-        @keyframes lowPulse {
-            0%, 100% { box-shadow: 0 0 0 0 rgba(255, 68, 68, 0.7); }
-            50% { box-shadow: 0 0 0 10px rgba(255, 68, 68, 0); }
-        }
-
-        #chessboard {
-            width: 480px;
-            height: 480px;
-            margin: 20px auto;
-            border: 4px solid #333;
-            border-radius: 10px;
-            position: relative;
-            box-shadow: 0 10px 20px rgba(0,0,0,0.4);
-            overflow: hidden;
-        }
-
-        .square {
-            width: 60px;
-            height: 60px;
-            float: left;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 36px;
-            cursor: pointer;
-            user-select: none;
-            transition: all 0.2s ease;
-            position: relative;
-            font-weight: bold;
-        }
-
-        .square img.piece-image {
-            width: 48%;
-            height: 48%;
-            pointer-events: none;
-            user-select: none;
-            object-fit: contain;
-        }
-
-        .light { 
-            background-color: #f0d9b5;
-        }
-        
-        .dark { 
-            background-color: #b58863;
-        }
-        
-        .square:hover {
-            opacity: 0.8;
-            transform: scale(1.05);
-            z-index: 5;
-        }
-        
-        .selected {
-            background-color: #87CEEB !important;
-            box-shadow: inset 0 0 20px rgba(0,100,255,0.8);
-            transform: scale(1.1);
-            z-index: 10;
-            animation: selectedPulse 2s infinite;
-        }
-
-        @keyframes selectedPulse {
-            0%, 100% { box-shadow: inset 0 0 20px rgba(0,100,255,0.8); }
-            50% { box-shadow: inset 0 0 30px rgba(0,150,255,0.9); }
-        }
-        
-        .possible-move {
-            background-color: #90EE90 !important;
-            position: relative;
-        }
-
-        .possible-move::after {
-            content: '';
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            width: 20px;
-            height: 20px;
-            border-radius: 50%;
-            background-color: rgba(0, 128, 0, 0.8);
-            transform: translate(-50%, -50%);
-            animation: pulse 2s infinite;
-        }
-
-        .capture-move {
-            background-color: #FF6B6B !important;
-            position: relative;
-        }
-
-        .capture-move::after {
-            content: '';
-            position: absolute;
-            top: 2px;
-            right: 2px;
-            bottom: 2px;
-            left: 2px;
-            border: 3px solid rgba(255, 0, 0, 0.9);
-            border-radius: 8px;
-            animation: captureGlow 1.5s infinite alternate;
-        }
-
-        @keyframes captureGlow {
-            from { border-color: rgba(255, 0, 0, 0.9); }
-            to { border-color: rgba(255, 100, 100, 0.9); }
-        }
-
-        .last-move {
-            background-color: #FFE4B5 !important;
-            box-shadow: 0 0 15px rgba(255, 215, 0, 0.8);
-        }
-
-        .in-check {
-            background-color: #FF4444 !important;
-            animation: checkPulse 1s infinite;
-        }
-
-        @keyframes pulse {
-            0%, 100% { opacity: 0.7; transform: translate(-50%, -50%) scale(1); }
-            50% { opacity: 1; transform: translate(-50%, -50%) scale(1.2); }
-        }
-
-        @keyframes checkPulse {
-            0% { box-shadow: 0 0 0 0 rgba(255, 68, 68, 0.7); }
-            70% { box-shadow: 0 0 0 20px rgba(255, 68, 68, 0); }
-            100% { box-shadow: 0 0 0 0 rgba(255, 68, 68, 0); }
-        }
-
-        .controls {
-            text-align: center;
-            margin: 25px 0;
-            display: flex;
-            justify-content: center;
-            flex-wrap: wrap;
-            gap: 15px;
-        }
-
-        button {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border: none;
-            padding: 15px 30px;
-            border-radius: 30px;
-            cursor: pointer;
-            font-size: 16px;
-            font-weight: bold;
-            transition: all 0.3s ease;
-            box-shadow: 0 6px 12px rgba(0,0,0,0.2);
-            position: relative;
-            overflow: hidden;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-
-        button::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: -100%;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
-            transition: left 0.5s;
-        }
-
-        button:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 8px 16px rgba(0,0,0,0.3);
-        }
-
-        button:hover::before {
-            left: 100%;
-        }
-
-        button:active {
-            transform: translateY(-1px);
-            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-        }
-
-        button:disabled {
-            background: linear-gradient(135deg, #ccc 0%, #999 100%);
-            cursor: not-allowed;
-            transform: none;
-        }
-
-        .status {
-            text-align: center;
-            font-size: 20px;
-            font-weight: bold;
-            margin: 20px 0;
-            padding: 20px;
-            border-radius: 12px;
-            background: linear-gradient(135deg, #f9f9f9 0%, #e9e9e9 100%);
-            border: 3px solid #ddd;
-            box-shadow: 0 6px 12px rgba(0,0,0,0.1);
-            position: relative;
-            overflow: hidden;
-            color: #333;
-        }
-
-        .status.checkmate {
-            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
-            color: white;
-            border-color: #c0392b;
-            animation: celebrate 0.6s ease-in-out;
-            box-shadow: 0 8px 16px rgba(238, 90, 36, 0.4);
-        }
-
-        .status.check {
-            background: linear-gradient(135deg, #ffa726 0%, #ff7043 100%);
-            color: white;
-            border-color: #e65100;
-            animation: warning 0.4s ease-in-out;
-            box-shadow: 0 8px 16px rgba(255, 112, 67, 0.4);
-        }
-
-        @keyframes celebrate {
-            0%, 100% { transform: scale(1); }
-            25% { transform: scale(1.05); }
-            75% { transform: scale(1.02); }
-        }
-
-        @keyframes warning {
-            0%, 100% { transform: translateX(0); }
-            25% { transform: translateX(-8px); }
-            75% { transform: translateX(8px); }
-        }
-
-        .thinking {
-            text-align: center;
-            color: #667eea;
-            font-weight: bold;
-            margin: 15px 0;
-            padding: 15px;
-            background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
-            border: 2px solid rgba(102, 126, 234, 0.3);
-            border-radius: 10px;
-            animation: thinkingPulse 1.5s infinite;
-            font-size: 18px;
-        }
-
-        @keyframes thinkingPulse {
-            0%, 100% { opacity: 0.7; transform: scale(1); }
-            50% { opacity: 1; transform: scale(1.02); }
-        }
-
-        .move-history {
-            max-height: 180px;
-            overflow-y: auto;
-            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-            padding: 20px;
-            border-radius: 12px;
-            margin-top: 25px;
-            font-family: 'Courier New', monospace;
-            font-size: 14px;
-            border: 2px solid #dee2e6;
-            box-shadow: inset 0 2px 8px rgba(0,0,0,0.1);
-        }
-
-        .move-history::-webkit-scrollbar {
-            width: 10px;
-        }
-
-        .move-history::-webkit-scrollbar-track {
-            background: #f1f1f1;
-            border-radius: 5px;
-        }
-
-        .move-history::-webkit-scrollbar-thumb {
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            border-radius: 5px;
-        }
-
-        .move-history::-webkit-scrollbar-thumb:hover {
-            background: linear-gradient(135deg, #5a6fd8, #6a4190);
-        }
-
-        .ai-info {
-            text-align: center;
-            margin: 15px 0;
-            padding: 15px;
-            background: linear-gradient(135deg, #e8f4fd 0%, #d1ecf1 100%);
-            border-radius: 10px;
-            font-size: 16px;
-            color: #155724;
-            border: 2px solid #b8daff;
-            position: relative;
-            font-weight: bold;
-        }
-
-        .ai-info::before {
-            content: '🤖';
-            font-size: 20px;
-            margin-right: 10px;
-        }
-
-        .sync-status {
-            text-align: center;
-            margin: 10px 0;
-            padding: 10px;
-            background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
-            border-radius: 8px;
-            font-size: 14px;
-            color: #155724;
-            border: 2px solid #c3e6cb;
-            font-weight: bold;
-            transition: all 0.3s ease;
-        }
-
-        .sync-status.thinking {
-            background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%);
-            color: #856404;
-            border-color: #ffeaa7;
-        }
-
-        .ai-learning-info {
-            margin-top: 20px;
-            padding: 15px;
-            background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
-            border-radius: 10px;
-            font-size: 13px;
-            text-align: center;
-            color: #495057;
-            border: 2px solid rgba(102, 126, 234, 0.2);
-            line-height: 1.6;
-        }
-
-        .loading {
-            display: inline-block;
-            width: 16px;
-            height: 16px;
-            border: 2px solid #f3f3f3;
-            border-radius: 50%;
-            border-top: 2px solid #667eea;
-            animation: spin 1s linear infinite;
-            margin-left: 8px;
-        }
-
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-
-        /* Responsive design */
-        @media (max-width: 768px) {
-            .container {
-                padding: 20px;
-                margin: 10px;
-            }
-            
-            h1 {
-                font-size: 2rem;
-                margin-bottom: 20px;
-            }
-            
-            #chessboard {
-                width: 320px;
-                height: 320px;
-            }
-            
-            .square {
-                width: 40px;
-                height: 40px;
-                font-size: 24px;
-            }
-            
-            .game-info {
-                flex-direction: column;
-                gap: 10px;
-            }
-            
-            .controls {
-                flex-direction: column;
-                align-items: center;
-                gap: 10px;
-            }
-            
-            button {
-                width: 100%;
-                max-width: 250px;
-                padding: 12px 20px;
-                font-size: 14px;
-            }
-
-            .clock {
-                font-size: 22px;
-                min-width: 100px;
-                padding: 8px 14px;
-            }
-        }
-
-        @media (max-width: 480px) {
-            #chessboard {
-                width: 280px;
-                height: 280px;
-            }
-            
-            .square {
-                width: 35px;
-                height: 35px;
-                font-size: 20px;
-            }
-        }
-
-        /* Enhanced animations */
-        .piece-capture {
-            animation: captureAnimation 0.5s ease-in-out;
-        }
-
-        @keyframes captureAnimation {
-            0% { transform: scale(1); }
-            50% { transform: scale(1.3); opacity: 0.7; }
-            100% { transform: scale(0.8); opacity: 0; }
-        }
-
-        .piece-move {
-            animation: moveAnimation 0.3s ease-in-out;
-        }
-
-        @keyframes moveAnimation {
-            0% { transform: scale(1); }
-            50% { transform: scale(1.1); }
-            100% { transform: scale(1); }
-        }
-    </style>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+<title>VELOCITY: BREAKPOINT</title>
+<link rel="stylesheet" href="./styles.css" />
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
 </head>
 <body>
-    <div class="container">
-        <h1>♔ Smart Chess AI ♛</h1>
-        
-        <div class="game-info">
-            <div class="info-section">
-                <span>Player: </span><span id="current-player">White</span>
-            </div>
-            <div class="info-section">
-                <span>Mode: </span><span id="game-mode-display">vs AI</span>
-            </div>
-            <div class="info-section">
-                <span>Move: </span><span id="move-counter">1</span>
-            </div>
-        </div>
+<canvas id="game"></canvas>
 
-        <div class="game-mode">
-            <label for="gameMode">Game Mode:</label>
-            <select id="gameMode" onchange="changeGameMode()">
-                <option value="ai">Centaur AI</option>
-                <option value="player">Player vs Player</option>
-            </select>
-        </div>
+<!-- ================= HUD ================= -->
+<div id="hud" class="hidden">
+  <div id="crosshair"><div id="crosshair-dot"></div><div id="crosshair-ring"></div></div>
 
-        <div class="time-control-row">
-            <label for="timeControl">Time Control:</label>
-            <select id="timeControl" onchange="changeTimeControl()">
-                <option value="unlimited" selected>Unlimited</option>
-                <option value="1+0">Bullet 1+0</option>
-                <option value="2+1">Bullet 2+1</option>
-                <option value="3+0">Blitz 3+0</option>
-                <option value="3+2">Blitz 3+2</option>
-                <option value="5+0">Blitz 5+0</option>
-                <option value="5+3">Blitz 5+3</option>
-                <option value="10+0">Rapid 10+0</option>
-                <option value="10+5">Rapid 10+5</option>
-                <option value="15+10">Rapid 15+10</option>
-                <option value="30+0">Classical 30+0</option>
-            </select>
-        </div>
+  <div class="hud-tl">
+    <div id="hud-stage">STAGE 1 / 3</div>
+    <div id="hud-timer">0.000</div>
+    <div id="hud-split"></div>
+  </div>
 
-        <div class="clocks">
-            <div class="clock-row">
-                <div class="clock-label">Black</div>
-                <div class="clock" id="black-clock">∞</div>
-            </div>
-            <div class="clock-row">
-                <div class="clock-label">White</div>
-                <div class="clock" id="white-clock">∞</div>
-            </div>
-        </div>
-        
-        <div class="sync-status" id="sync-status">Ready</div>
-        
-        <div id="status" class="status">White to move</div>
-        <div id="thinking" class="thinking" style="display: none;">
-            🤔 AI is calculating the best move<span class="loading"></span>
-        </div>
-        
-        <div id="chessboard"></div>
-        
-        <div class="controls">
-            <button onclick="newGame()" title="Start a new game">🎯 New Game</button>
-            <button onclick="undoMove()" title="Undo the last move">↶ Undo Move</button>
-            <button onclick="switchSides()" title="Switch sides with AI">🔄 Switch Sides</button>
-        </div>
-        
-        <div class="move-history">
-            <strong>📝 Move History:</strong>
-            <div id="move-list">Game ready to start</div>
-        </div>
+  <div class="hud-tr">
+    <div class="hud-row"><span class="lbl">SPEED</span><span id="hud-speed">0.0</span><span class="unit">u/s</span></div>
+    <div class="hud-row"><span class="lbl">PB</span><span id="hud-pb">--</span></div>
+    <div class="hud-row"><span class="lbl">TOTAL</span><span id="hud-total">0.000</span></div>
+  </div>
 
-        <div class="ai-learning-info">
-            <strong>🧠 Smart AI Features:</strong> 
-            This AI uses a professional opening book, learns from games, and adapts its difficulty. 
-            It employs advanced evaluation including piece positioning, king safety, mobility, and tactical awareness.
-            <br><br>
-            <strong>⏱️ Time Controls:</strong> Select a preset above. The AI allocates its time budget automatically —
-            it uses more time in complex positions and less in obvious ones. Bullet games typically use ~100ms–500ms per move.
-        </div>
+  <div class="hud-bc">
+    <div id="hud-abilities"></div>
+    <div id="hud-health-wrap">
+      <div id="hud-health"><div id="hud-health-fill"></div></div>
+      <div id="hud-heals"></div>
     </div>
+  </div>
 
-    <!-- Load ALL JavaScript files in correct order -->
-    <script src="chess-ai-database.js"></script>
-    <script src="chess-endgame.js"></script>
-    <script src="chess-game-database.js"></script>
-    <script src="chess-game.js"></script>
+  <div id="hud-toast"></div>
+  <div id="hud-hint"></div>
+</div>
 
-    <script>
-        // ========== PAWN IMAGE SWAP ==========
-        const PAWN_IMAGES = {
-            '♙': 'assets/white_pawn.png',
-            '♟': 'assets/black_pawn.png'
-        };
+<!-- ================= SCREENS ================= -->
+<div id="overlay">
 
-        function applyPawnImages() {
-            const squares = document.querySelectorAll('#chessboard .square');
-            squares.forEach(sq => {
-                const text = sq.textContent.trim();
-                if (text === '♙' || text === '♟') {
-                    sq.textContent = '';
-                    const img = document.createElement('img');
-                    img.src = PAWN_IMAGES[text];
-                    img.alt = text === '♙' ? 'White pawn' : 'Black pawn';
-                    img.className = 'piece-image';
-                    sq.appendChild(img);
-                }
-            });
-        }
+  <!-- MAIN MENU -->
+  <section class="screen" id="screen-menu">
+    <div class="menu-wrap">
+      <h1 class="title">VELOCITY<span>:</span>BREAKPOINT</h1>
+      <p class="subtitle">A 3D skill-based speedrunning roguelite</p>
+      <div class="btn-col">
+        <button class="btn primary" id="btn-play">PLAY</button>
+        <button class="btn" id="btn-continue" style="display:none">CONTINUE RUN</button>
+        <button class="btn" id="btn-abilities">ABILITY COLLECTION</button>
+        <button class="btn" id="btn-records">COURSE RECORDS</button>
+        <button class="btn" id="btn-settings">SETTINGS</button>
+        <button class="btn" id="btn-controls">CONTROLS</button>
+      </div>
+      <div class="menu-footer">
+        <span id="menu-currency">CREDITS: 0</span>
+        <span>v1.0</span>
+      </div>
+    </div>
+  </section>
 
-        const _pawnSwapInterval = setInterval(() => {
-            if (typeof window.createBoard === 'function') {
-                const originalCreateBoard = window.createBoard;
-                window.createBoard = function() {
-                    originalCreateBoard.apply(this, arguments);
-                    applyPawnImages();
-                };
-                clearInterval(_pawnSwapInterval);
-                applyPawnImages();
-            }
-        }, 50);
+  <!-- CONTROLS -->
+  <section class="screen hidden" id="screen-controls">
+    <div class="panel">
+      <h2>CONTROLS</h2>
+      <div class="controls-grid">
+        <div><kbd>W A S D</kbd><span>Move</span></div>
+        <div><kbd>MOUSE</kbd><span>Look</span></div>
+        <div><kbd>SPACE</kbd><span>Jump / Double Jump / Wall Jump</span></div>
+        <div><kbd>SHIFT</kbd><span>Sprint</span></div>
+        <div><kbd>CTRL</kbd><span>Slide / Crouch</span></div>
+        <div><kbd>E</kbd><span>Grapple (hold / release)</span></div>
+        <div><kbd>Q</kbd><span>Ability Slot 1 (Air Dash)</span></div>
+        <div><kbd>R</kbd><span>Ability Slot 2 (Slam / Blink)</span></div>
+        <div><kbd>F</kbd><span>Heal Jump</span></div>
+        <div><kbd>ESC</kbd><span>Pause</span></div>
+        <div><kbd>ENTER</kbd><span>Quick Retry (on results)</span></div>
+      </div>
+      <p class="tip">Tip: momentum is never reset on landing. Chain slides, wall-jumps, grapple swings and air dashes to build speed.</p>
+      <button class="btn" data-back>BACK</button>
+    </div>
+  </section>
 
-        // ========== EXISTING PAGE HELPERS ==========
+  <!-- SETTINGS -->
+  <section class="screen hidden" id="screen-settings">
+    <div class="panel">
+      <h2>SETTINGS</h2>
+      <div class="setting"><label>Mouse Sensitivity <span id="val-sens">1.00</span></label>
+        <input type="range" id="set-sens" min="0.2" max="3" step="0.05" value="1" /></div>
+      <div class="setting"><label>Field of View <span id="val-fov">92</span></label>
+        <input type="range" id="set-fov" min="70" max="120" step="1" value="92" /></div>
+      <div class="setting"><label>Volume <span id="val-vol">0.60</span></label>
+        <input type="range" id="set-vol" min="0" max="1" step="0.05" value="0.6" /></div>
+      <div class="setting"><label>Camera Effects</label>
+        <input type="checkbox" id="set-fx" checked /></div>
+      <div class="setting"><label>Graphics Quality</label>
+        <select id="set-quality">
+          <option value="high">High</option>
+          <option value="medium">Medium</option>
+          <option value="low">Low</option>
+        </select></div>
+      <div class="row">
+        <button class="btn" data-back>BACK</button>
+        <button class="btn danger" id="btn-reset">RESET SAVE</button>
+      </div>
+    </div>
+  </section>
 
-        function updateStatusWithAnimation(message, type = 'normal') {
-            const statusElement = document.getElementById('status');
-            if (statusElement) {
-                statusElement.textContent = message;
-                statusElement.classList.remove('checkmate', 'check', 'normal');
-                statusElement.classList.add(type);
-            }
-        }
+  <!-- ABILITIES -->
+  <section class="screen hidden" id="screen-abilities">
+    <div class="panel wide">
+      <h2>ABILITY COLLECTION</h2>
+      <div id="ability-list" class="ability-list"></div>
+      <button class="btn" data-back>BACK</button>
+    </div>
+  </section>
 
-        document.addEventListener('keydown', function(e) {
-            if (e.ctrlKey || e.metaKey) {
-                switch(e.key) {
-                    case 'z':
-                        e.preventDefault();
-                        if (typeof undoMove === 'function') undoMove();
-                        break;
-                    case 'n':
-                        e.preventDefault();
-                        if (typeof newGame === 'function') newGame();
-                        break;
-                    case 's':
-                        e.preventDefault();
-                        if (typeof switchSides === 'function') switchSides();
-                        break;
-                }
-            }
-            
-            if (e.code === 'Space' && e.target.tagName !== 'SELECT') {
-                e.preventDefault();
-                if (typeof newGame === 'function') newGame();
-            }
-        });
+  <!-- RECORDS -->
+  <section class="screen hidden" id="screen-records">
+    <div class="panel wide">
+      <h2>COURSE RECORDS</h2>
+      <div id="records-list" class="records-list"></div>
+      <button class="btn" data-back>BACK</button>
+    </div>
+  </section>
 
-        function animatePieceMove(fromSquare, toSquare) {
-            const fromElement = document.getElementById(fromSquare);
-            const toElement = document.getElementById(toSquare);
-            
-            if (fromElement) {
-                fromElement.classList.add('piece-move');
-                setTimeout(() => fromElement.classList.remove('piece-move'), 300);
-            }
-            
-            if (toElement) {
-                toElement.classList.add('piece-move');
-                setTimeout(() => toElement.classList.remove('piece-move'), 300);
-            }
-        }
+  <!-- PAUSE -->
+  <section class="screen hidden" id="screen-pause">
+    <div class="panel">
+      <h2>PAUSED</h2>
+      <p class="tip">The stage timer is stopped while paused.</p>
+      <div class="btn-col">
+        <button class="btn primary" id="btn-resume">RESUME</button>
+        <button class="btn" id="btn-restart">RESTART STAGE</button>
+        <button class="btn" id="btn-abandon">ABANDON RUN</button>
+        <button class="btn" id="btn-pause-settings">SETTINGS</button>
+      </div>
+    </div>
+  </section>
 
-        window.addEventListener('load', function() {
-            setTimeout(() => {
-                console.log('🎯 Welcome to Smart Chess AI! 🤖');
-            }, 1000);
-        });
+  <!-- UPGRADE -->
+  <section class="screen hidden" id="screen-upgrade">
+    <div class="panel wide">
+      <h2>SELECT AN UPGRADE</h2>
+      <p class="tip">Permanent for this run only. Choose carefully — some change what you can do, not just numbers.</p>
+      <div id="upgrade-cards" class="cards"></div>
+    </div>
+  </section>
 
-        function addMoveEffect(square) {
-            const element = document.getElementById(square);
-            if (element) {
-                element.style.transform = 'scale(1.1)';
-                element.style.transition = 'transform 0.2s ease';
-                setTimeout(() => {
-                    element.style.transform = 'scale(1)';
-                }, 200);
-            }
-        }
+  <!-- RESULTS -->
+  <section class="screen hidden" id="screen-results">
+    <div class="panel wide">
+      <h2 id="res-title">STAGE COMPLETE</h2>
+      <div class="res-grid">
+        <div><span class="lbl">TIME</span><span id="res-time" class="big">0.000</span></div>
+        <div><span class="lbl">BEST</span><span id="res-best">--</span></div>
+        <div><span class="lbl">MEDAL</span><span id="res-medal">--</span></div>
+        <div><span class="lbl">CREDITS</span><span id="res-credits">+0</span></div>
+      </div>
+      <div id="res-splits" class="splits"></div>
+      <div class="row">
+        <button class="btn primary" id="btn-res-continue">CONTINUE</button>
+        <button class="btn" id="btn-res-retry">RETRY STAGE</button>
+        <button class="btn" id="btn-res-hub">RETURN TO HUB</button>
+      </div>
+    </div>
+  </section>
 
-        window.addEventListener('error', function(e) {
-            console.error('Game error:', e.error);
-        });
+  <!-- CLICK TO PLAY -->
+  <section class="screen hidden" id="screen-click">
+    <div class="click-box">
+      <h2>CLICK TO CAPTURE MOUSE</h2>
+      <p>Press <kbd>ESC</kbd> to pause.</p>
+    </div>
+  </section>
 
-        document.addEventListener('contextmenu', function(e) {
-            if (e.target.classList.contains('square')) {
-                e.preventDefault();
-            }
-        });
+</div>
 
-        let touchStartSquare = null;
-        document.addEventListener('touchstart', function(e) {
-            if (e.target.classList.contains('square')) {
-                touchStartSquare = e.target.id;
-                e.preventDefault();
-            }
-        });
-
-        document.addEventListener('touchend', function(e) {
-            if (e.target.classList.contains('square') && touchStartSquare === e.target.id) {
-                e.target.click();
-            }
-            touchStartSquare = null;
-        });
-
-        let lastTouchEnd = 0;
-        document.addEventListener('touchend', function(event) {
-            const now = (new Date()).getTime();
-            if (now - lastTouchEnd <= 300) {
-                event.preventDefault();
-            }
-            lastTouchEnd = now;
-        }, false);
-
-        document.addEventListener('DOMContentLoaded', function() {
-            console.log('🎯 Chess game interface loaded successfully!');
-        });
-
-        window.onerror = function(msg, url, lineNo, columnNo, error) {
-            console.log('Error: ' + msg + '\nURL: ' + url + '\nLine: ' + lineNo);
-            return false;
-        };
-    </script>
+<script type="module" src="./js/main.js"></script>
 </body>
 </html>
