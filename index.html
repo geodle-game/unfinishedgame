@@ -1,190 +1,1896 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-<title>VELOCITY: BREAKPOINT</title>
-<link rel="stylesheet" href="./styles.css" />
-<script type="importmap">
-{
-  "imports": {
-    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
-    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#05060a">
+<title>NEON VECTOR</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{
+    width:100%;height:100%;overflow:hidden;background:#05060a;
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    touch-action:none;overscroll-behavior:none;
+    -webkit-user-select:none;user-select:none;
   }
-}
-</script>
+  #game{display:block;position:absolute;inset:0;width:100%;height:100%}
+  .overlay{
+    position:absolute;inset:0;display:flex;flex-direction:column;
+    align-items:center;justify-content:center;gap:14px;
+    background:radial-gradient(circle at 50% 45%,rgba(10,20,40,.82),rgba(3,4,8,.97));
+    z-index:10;padding:24px;text-align:center;
+  }
+  .overlay.hidden{display:none}
+  h1{
+    font-size:clamp(30px,9vw,58px);letter-spacing:.14em;font-weight:800;
+    color:#7dfcff;text-shadow:0 0 18px rgba(80,255,240,.75),0 0 48px rgba(80,255,240,.35);
+  }
+  h1 span{color:#ff4d94;text-shadow:0 0 18px rgba(255,60,140,.8),0 0 48px rgba(255,60,140,.35)}
+  .tag{color:#6f8ba8;font-size:13px;letter-spacing:.16em;margin-bottom:6px}
+  .btn{
+    width:min(340px,86vw);padding:15px 18px;border-radius:12px;cursor:pointer;
+    background:rgba(80,255,240,.06);border:1.5px solid rgba(80,255,240,.55);
+    color:#9ffcff;font-family:inherit;font-size:15px;font-weight:700;letter-spacing:.14em;
+    transition:background .12s,box-shadow .12s,transform .08s;
+  }
+  .btn:hover{background:rgba(80,255,240,.16);box-shadow:0 0 26px rgba(80,255,240,.45)}
+  .btn:active{transform:scale(.97)}
+  .btn.pink{background:rgba(255,60,140,.06);border-color:rgba(255,60,140,.6);color:#ff9cc4}
+  .btn.pink:hover{background:rgba(255,60,140,.16);box-shadow:0 0 26px rgba(255,60,140,.45)}
+  .btn small{display:block;font-weight:400;font-size:11px;letter-spacing:.06em;opacity:.7;margin-top:6px}
+  .hint{color:#4d6478;font-size:11.5px;line-height:1.8;letter-spacing:.05em;max-width:min(420px,88vw)}
+  .hint b{color:#8fd6e6;font-weight:600}
+  #over h1{font-size:clamp(26px,7vw,44px)}
+  .stat{color:#9fb8cc;font-size:14px;letter-spacing:.1em}
+  .stat b{color:#7dfcff;font-size:20px}
+  .stat.m b{color:#ff4d94;font-size:20px}
+</style>
 </head>
 <body>
 <canvas id="game"></canvas>
 
-<!-- ================= HUD ================= -->
-<div id="hud" class="hidden">
-  <div id="crosshair"><div id="crosshair-dot"></div><div id="crosshair-ring"></div></div>
-
-  <div class="hud-tl">
-    <div id="hud-stage">STAGE 1 / 3</div>
-    <div id="hud-timer">0.000</div>
-    <div id="hud-split"></div>
+<div id="menu" class="overlay">
+  <div class="tag">MOVEMENT IS YOUR WEAPON</div>
+  <h1>NEON<span>VECTOR</span></h1>
+  <button class="btn" data-mode="curve">CURVE MODE
+    <small>Plan the arc — commit — impact</small>
+  </button>
+  <button class="btn pink" data-mode="queue">QUEUE MODE
+    <small>Predict the future — chain blind</small>
+  </button>
+  <div class="hint">
+    <b>TAP</b> an enemy or wall to lock a target · <b>MOVE</b> to bend the trajectory · <b>RELEASE</b> to launch<br>
+    PC: <b>WASD</b> move · <b>CLICK</b> target · <b>SPACE</b> lock · <b>SHIFT</b> emergency stop
   </div>
-
-  <div class="hud-tr">
-    <div class="hud-row"><span class="lbl">SPEED</span><span id="hud-speed">0.0</span><span class="unit">u/s</span></div>
-    <div class="hud-row"><span class="lbl">PB</span><span id="hud-pb">--</span></div>
-    <div class="hud-row"><span class="lbl">TOTAL</span><span id="hud-total">0.000</span></div>
-  </div>
-
-  <div class="hud-bc">
-    <div id="hud-abilities"></div>
-    <div id="hud-health-wrap">
-      <div id="hud-health"><div id="hud-health-fill"></div></div>
-      <div id="hud-heals"></div>
-    </div>
-  </div>
-
-  <div id="hud-toast"></div>
-  <div id="hud-hint"></div>
 </div>
 
-<!-- ================= SCREENS ================= -->
-<div id="overlay">
-
-  <!-- MAIN MENU -->
-  <section class="screen" id="screen-menu">
-    <div class="menu-wrap">
-      <h1 class="title">VELOCITY<span>:</span>BREAKPOINT</h1>
-      <p class="subtitle">A 3D skill-based speedrunning roguelite</p>
-      <div class="btn-col">
-        <button class="btn primary" id="btn-play">PLAY</button>
-        <button class="btn" id="btn-continue" style="display:none">CONTINUE RUN</button>
-        <button class="btn" id="btn-abilities">ABILITY COLLECTION</button>
-        <button class="btn" id="btn-records">COURSE RECORDS</button>
-        <button class="btn" id="btn-settings">SETTINGS</button>
-        <button class="btn" id="btn-controls">CONTROLS</button>
-      </div>
-      <div class="menu-footer">
-        <span id="menu-currency">CREDITS: 0</span>
-        <span>v1.0</span>
-      </div>
-    </div>
-  </section>
-
-  <!-- CONTROLS -->
-  <section class="screen hidden" id="screen-controls">
-    <div class="panel">
-      <h2>CONTROLS</h2>
-      <div class="controls-grid">
-        <div><kbd>W A S D</kbd><span>Move</span></div>
-        <div><kbd>MOUSE</kbd><span>Look</span></div>
-        <div><kbd>SPACE</kbd><span>Jump / Double Jump / Wall Jump</span></div>
-        <div><kbd>SHIFT</kbd><span>Sprint</span></div>
-        <div><kbd>CTRL</kbd><span>Slide / Crouch</span></div>
-        <div><kbd>E</kbd><span>Grapple (hold / release)</span></div>
-        <div><kbd>Q</kbd><span>Ability Slot 1 (Air Dash)</span></div>
-        <div><kbd>R</kbd><span>Ability Slot 2 (Slam / Blink)</span></div>
-        <div><kbd>F</kbd><span>Heal Jump</span></div>
-        <div><kbd>ESC</kbd><span>Pause</span></div>
-        <div><kbd>ENTER</kbd><span>Quick Retry (on results)</span></div>
-      </div>
-      <p class="tip">Tip: momentum is never reset on landing. Chain slides, wall-jumps, grapple swings and air dashes to build speed.</p>
-      <button class="btn" data-back>BACK</button>
-    </div>
-  </section>
-
-  <!-- SETTINGS -->
-  <section class="screen hidden" id="screen-settings">
-    <div class="panel">
-      <h2>SETTINGS</h2>
-      <div class="setting"><label>Mouse Sensitivity <span id="val-sens">1.00</span></label>
-        <input type="range" id="set-sens" min="0.2" max="3" step="0.05" value="1" /></div>
-      <div class="setting"><label>Field of View <span id="val-fov">92</span></label>
-        <input type="range" id="set-fov" min="70" max="120" step="1" value="92" /></div>
-      <div class="setting"><label>Volume <span id="val-vol">0.60</span></label>
-        <input type="range" id="set-vol" min="0" max="1" step="0.05" value="0.6" /></div>
-      <div class="setting"><label>Camera Effects</label>
-        <input type="checkbox" id="set-fx" checked /></div>
-      <div class="setting"><label>Graphics Quality</label>
-        <select id="set-quality">
-          <option value="high">High</option>
-          <option value="medium">Medium</option>
-          <option value="low">Low</option>
-        </select></div>
-      <div class="row">
-        <button class="btn" data-back>BACK</button>
-        <button class="btn danger" id="btn-reset">RESET SAVE</button>
-      </div>
-    </div>
-  </section>
-
-  <!-- ABILITIES -->
-  <section class="screen hidden" id="screen-abilities">
-    <div class="panel wide">
-      <h2>ABILITY COLLECTION</h2>
-      <div id="ability-list" class="ability-list"></div>
-      <button class="btn" data-back>BACK</button>
-    </div>
-  </section>
-
-  <!-- RECORDS -->
-  <section class="screen hidden" id="screen-records">
-    <div class="panel wide">
-      <h2>COURSE RECORDS</h2>
-      <div id="records-list" class="records-list"></div>
-      <button class="btn" data-back>BACK</button>
-    </div>
-  </section>
-
-  <!-- PAUSE -->
-  <section class="screen hidden" id="screen-pause">
-    <div class="panel">
-      <h2>PAUSED</h2>
-      <p class="tip">The stage timer is stopped while paused.</p>
-      <div class="btn-col">
-        <button class="btn primary" id="btn-resume">RESUME</button>
-        <button class="btn" id="btn-restart">RESTART STAGE</button>
-        <button class="btn" id="btn-abandon">ABANDON RUN</button>
-        <button class="btn" id="btn-pause-settings">SETTINGS</button>
-      </div>
-    </div>
-  </section>
-
-  <!-- UPGRADE -->
-  <section class="screen hidden" id="screen-upgrade">
-    <div class="panel wide">
-      <h2>SELECT AN UPGRADE</h2>
-      <p class="tip">Permanent for this run only. Choose carefully — some change what you can do, not just numbers.</p>
-      <div id="upgrade-cards" class="cards"></div>
-    </div>
-  </section>
-
-  <!-- RESULTS -->
-  <section class="screen hidden" id="screen-results">
-    <div class="panel wide">
-      <h2 id="res-title">STAGE COMPLETE</h2>
-      <div class="res-grid">
-        <div><span class="lbl">TIME</span><span id="res-time" class="big">0.000</span></div>
-        <div><span class="lbl">BEST</span><span id="res-best">--</span></div>
-        <div><span class="lbl">MEDAL</span><span id="res-medal">--</span></div>
-        <div><span class="lbl">CREDITS</span><span id="res-credits">+0</span></div>
-      </div>
-      <div id="res-splits" class="splits"></div>
-      <div class="row">
-        <button class="btn primary" id="btn-res-continue">CONTINUE</button>
-        <button class="btn" id="btn-res-retry">RETRY STAGE</button>
-        <button class="btn" id="btn-res-hub">RETURN TO HUB</button>
-      </div>
-    </div>
-  </section>
-
-  <!-- CLICK TO PLAY -->
-  <section class="screen hidden" id="screen-click">
-    <div class="click-box">
-      <h2>CLICK TO CAPTURE MOUSE</h2>
-      <p>Press <kbd>ESC</kbd> to pause.</p>
-    </div>
-  </section>
-
+<div id="over" class="overlay hidden">
+  <h1 id="overTitle">SIGNAL LOST</h1>
+  <div class="stat">SCORE <b id="finalScore">0</b></div>
+  <div class="stat m">MAX CHAIN <b id="finalChain">0</b></div>
+  <div class="stat">SURVIVED <b id="finalTime">0s</b></div>
+  <button class="btn" id="retryBtn">RETRY</button>
+  <button class="btn pink" id="menuBtn">CHANGE MODE</button>
 </div>
 
-<script type="module" src="./js/main.js"></script>
+<script>
+(() => {
+"use strict";
+
+/* ══════════════════════════════════════════════════════════
+   CANVAS
+   ══════════════════════════════════════════════════════════ */
+const cvs = document.getElementById('game');
+const ctx = cvs.getContext('2d', { alpha: false });
+let W = 0, H = 0, DPR = 1;
+let vignette = null;
+
+function resize() {
+  DPR = Math.min(window.devicePixelRatio || 1, 2);
+  W = window.innerWidth;
+  H = window.innerHeight;
+  cvs.width = Math.floor(W * DPR);
+  cvs.height = Math.floor(H * DPR);
+  cvs.style.width = W + 'px';
+  cvs.style.height = H + 'px';
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+
+  JOY.x = 108; JOY.y = H - 142;
+  ESTOP.x = W - 84; ESTOP.y = H - 118;
+
+  const g = ctx.createRadialGradient(W/2, H/2, Math.min(W,H)*0.18, W/2, H/2, Math.max(W,H)*0.78);
+  g.addColorStop(0, 'rgba(0,0,0,0)');
+  g.addColorStop(1, 'rgba(0,0,0,0.72)');
+  vignette = g;
+
+  buildWalls();
+}
+
+/* ══════════════════════════════════════════════════════════
+   CONFIG  (tune freely)
+   ══════════════════════════════════════════════════════════ */
+const CFG = {
+  normalSpeed:      195,   // px/s — slow, controllable
+  dashMultiplier:   20,    // dash speed = normalSpeed * this  (~25x spec, tuned)
+  chainSpeedBonus:  0.05,  // +5% dash speed per chain
+  chainSpeedMax:    2.0,   // hard cap multiplier
+  planWindow:       0.90,  // seconds of planning (real time)
+  planSlow:         0.40,  // time scale while planning
+  maxCurve:         0.95,  // max lateral control-point offset (× dist)
+  missPenalty:      3.0,   // seconds of dash lockout after a miss
+  recoveryDrag:     2.0,   // exponential velocity decay during recovery
+  recoveryExit:     0.55,  // fraction of dash speed kept after a miss
+  chainWindow:      3.0,   // seconds before chain decays
+  emergencyCd:      7.0,
+  playerR:          11,
+  hitStop:          0.035,
+  maxParticles:     340,
+  queueMax:         4,
+};
+
+/* ══════════════════════════════════════════════════════════
+   MATH UTILS
+   ══════════════════════════════════════════════════════════ */
+const TAU = Math.PI * 2;
+const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
+const lerp  = (a, b, t) => a + (b - a) * t;
+const rnd   = (a, b) => a + Math.random() * (b - a);
+const rndi  = (a, b) => Math.floor(rnd(a, b + 1));
+const pick  = arr => arr[Math.floor(Math.random() * arr.length)];
+const dist2 = (ax, ay, bx, by) => { const dx = bx-ax, dy = by-ay; return dx*dx + dy*dy; };
+
+/* ══════════════════════════════════════════════════════════
+   GLOW SPRITE CACHE  (fast neon rendering)
+   ══════════════════════════════════════════════════════════ */
+const glowCache = new Map();
+function getGlow(rgb) {
+  let s = glowCache.get(rgb);
+  if (s) return s;
+  const S = 128;
+  const c = document.createElement('canvas');
+  c.width = c.height = S;
+  const g = c.getContext('2d');
+  const grd = g.createRadialGradient(S/2, S/2, 0, S/2, S/2, S/2);
+  grd.addColorStop(0.00, `rgba(${rgb},1)`);
+  grd.addColorStop(0.16, `rgba(${rgb},0.78)`);
+  grd.addColorStop(0.38, `rgba(${rgb},0.30)`);
+  grd.addColorStop(0.70, `rgba(${rgb},0.06)`);
+  grd.addColorStop(1.00, `rgba(${rgb},0)`);
+  g.fillStyle = grd;
+  g.fillRect(0, 0, S, S);
+  glowCache.set(rgb, c);
+  return c;
+}
+function drawGlow(x, y, r, rgb, alpha = 1) {
+  if (alpha <= 0.004 || r <= 0) return;
+  ctx.globalAlpha = alpha;
+  ctx.drawImage(getGlow(rgb), x - r, y - r, r * 2, r * 2);
+  ctx.globalAlpha = 1;
+}
+
+const COL = {
+  player:  '90,255,244',
+  playerHi:'200,255,255',
+  drifter: '255,64,132',
+  orbiter: '255,176,48',
+  turret:  '176,96,255',
+  boss:    '255,40,96',
+  wall:    '96,164,255',
+  proj:    '255,96,120',
+  projBoss:'255,60,180',
+  gold:    '255,232,120',
+};
+
+/* ══════════════════════════════════════════════════════════
+   INPUT
+   ══════════════════════════════════════════════════════════ */
+const JOY   = { x: 108, y: 400, r: 58, zone: 160 };
+const ESTOP = { x: 700, y: 600, r: 46 };
+
+const input = {
+  keys: new Set(),
+  joyId: null,
+  joyActive: false,
+  joyVec: { x: 0, y: 0 },
+  mouse: { x: 0, y: 0 },
+};
+
+window.addEventListener('keydown', e => {
+  if (['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','ShiftLeft','ShiftRight'].includes(e.code)) e.preventDefault();
+  if (e.repeat) return;
+  input.keys.add(e.code);
+  if (e.code === 'Space') onLockPressed();
+  if (e.code === 'ShiftLeft' || e.code === 'ShiftRight' || e.code === 'KeyE') doEmergencyStop();
+});
+window.addEventListener('keyup', e => input.keys.delete(e.code));
+window.addEventListener('blur', () => input.keys.clear());
+
+function keyVector() {
+  let x = 0, y = 0;
+  const k = input.keys;
+  if (k.has('KeyA') || k.has('ArrowLeft'))  x -= 1;
+  if (k.has('KeyD') || k.has('ArrowRight')) x += 1;
+  if (k.has('KeyW') || k.has('ArrowUp'))    y -= 1;
+  if (k.has('KeyS') || k.has('ArrowDown'))  y += 1;
+  const m = Math.hypot(x, y);
+  if (m > 1) { x /= m; y /= m; }
+  return { x, y };
+}
+function moveVector() {
+  if (input.joyActive) return { x: input.joyVec.x, y: input.joyVec.y };
+  return keyVector();
+}
+
+/* ── pointer / touch ─────────────────────────────────────── */
+function posOf(clientX, clientY) {
+  const r = cvs.getBoundingClientRect();
+  return { x: clientX - r.left, y: clientY - r.top };
+}
+
+cvs.addEventListener('touchstart', e => {
+  e.preventDefault();
+  for (const t of e.changedTouches) {
+    const p = posOf(t.clientX, t.clientY);
+    // joystick zone
+    if (input.joyId === null && Math.hypot(p.x - JOY.x, p.y - JOY.y) < JOY.zone) {
+      input.joyId = t.identifier;
+      input.joyActive = true;
+      input.joyVec.x = 0; input.joyVec.y = 0;
+      if (P.state === 'planning') P.joyUsedInPlan = true;
+      continue;
+    }
+    // emergency button
+    if (Math.hypot(p.x - ESTOP.x, p.y - ESTOP.y) < ESTOP.r + 12) { doEmergencyStop(); continue; }
+    handleTap(p.x, p.y);
+  }
+}, { passive: false });
+
+cvs.addEventListener('touchmove', e => {
+  e.preventDefault();
+  for (const t of e.changedTouches) {
+    if (t.identifier !== input.joyId) continue;
+    const p = posOf(t.clientX, t.clientY);
+    let dx = p.x - JOY.x, dy = p.y - JOY.y;
+    const d = Math.hypot(dx, dy);
+    const maxR = 62;
+    const k = Math.min(1, d / maxR);
+    if (d > 0.001) { input.joyVec.x = dx / d * k; input.joyVec.y = dy / d * k; }
+    else { input.joyVec.x = 0; input.joyVec.y = 0; }
+  }
+}, { passive: false });
+
+function endTouch(e) {
+  for (const t of e.changedTouches) {
+    if (t.identifier !== input.joyId) continue;
+    input.joyId = null;
+    input.joyActive = false;
+    input.joyVec.x = 0; input.joyVec.y = 0;
+    // releasing the stick locks the trajectory
+    if (P.state === 'planning' && P.joyUsedInPlan) lockDash();
+  }
+}
+cvs.addEventListener('touchend', endTouch);
+cvs.addEventListener('touchcancel', endTouch);
+
+cvs.addEventListener('mousemove', e => {
+  const p = posOf(e.clientX, e.clientY);
+  input.mouse.x = p.x; input.mouse.y = p.y;
+});
+cvs.addEventListener('mousedown', e => {
+  if (e.button === 2) { onLockPressed(); return; }
+  const p = posOf(e.clientX, e.clientY);
+  if (Math.hypot(p.x - ESTOP.x, p.y - ESTOP.y) < ESTOP.r + 10) { doEmergencyStop(); return; }
+  if (Math.hypot(p.x - JOY.x, p.y - JOY.y) < JOY.zone * 0.75) return; // ignore joystick area
+  handleTap(p.x, p.y);
+});
+cvs.addEventListener('contextmenu', e => e.preventDefault());
+
+/* ══════════════════════════════════════════════════════════
+   GAME STATE
+   ══════════════════════════════════════════════════════════ */
+const G = {
+  state: 'menu',          // 'menu' | 'playing' | 'over'
+  mode: 'curve',
+  time: 0,
+  timeScale: 1,
+  hitStop: 0,
+  shake: 0,
+  flash: 0,
+  flashColor: '255,255,255',
+  score: 0,
+  kills: 0,
+  walls: [],
+  enemies: [],
+  projectiles: [],
+  particles: [],
+  queued: [],
+  xmark: null,
+  spawnTimer: 1.2,
+  bossTimer: 42,
+  bossAlive: false,
+  arrowVisible: false,
+  hintTimer: 9,
+  frameTime: 0,
+};
+
+const P = {
+  x: 0, y: 0, vx: 0, vy: 0,
+  r: CFG.playerR,
+  hp: 100, maxHp: 100,
+  state: 'normal',        // normal | planning | dashing | recovery
+  chain: 0, maxChain: 0, chainTimer: 0,
+  invuln: 0,
+  dashCd: 0,
+  emergencyCd: 0,
+  target: null,
+  steer: 0,
+  planTimer: 0,
+  joyUsedInPlan: false,
+  path: null,
+  pathDist: 0,
+  pathSpeed: 0,
+  trail: [],
+  alive: true,
+  spawnProtect: 0,
+};
+
+/* ══════════════════════════════════════════════════════════
+   WALLS / ARENA
+   ══════════════════════════════════════════════════════════ */
+function buildWalls() {
+  G.walls = [];
+  if (!W || !H) return;
+  const T = 18;
+  const add = (x, y, w, h) => G.walls.push({ x, y, w, h });
+  add(W * 0.155, H * 0.26, T, H * 0.19);
+  add(W * 0.155, H * 0.58, T, H * 0.19);
+  add(W * 0.845 - T, H * 0.20, T, H * 0.19);
+  add(W * 0.845 - T, H * 0.60, T, H * 0.19);
+  add(W * 0.40, H * 0.075, W * 0.20, T);
+  add(W * 0.40, H * 0.925 - T, W * 0.20, T);
+}
+
+/* ══════════════════════════════════════════════════════════
+   PATH MATH  (quadratic bezier with arc-length table)
+   ══════════════════════════════════════════════════════════ */
+function buildPath(p0, p1, p2) {
+  const N = 36;
+  const pts = [p0.x, p0.y];
+  const cums = [0];
+  let px = p0.x, py = p0.y, len = 0;
+  for (let i = 1; i <= N; i++) {
+    const t = i / N, mt = 1 - t;
+    const x = mt*mt*p0.x + 2*mt*t*p1.x + t*t*p2.x;
+    const y = mt*mt*p0.y + 2*mt*t*p1.y + t*t*p2.y;
+    len += Math.hypot(x - px, y - py);
+    cums.push(len);
+    pts.push(x, y);
+    px = x; py = y;
+  }
+  return { pts, cums, N, len };
+}
+
+function pointAt(path, d) {
+  const { pts, cums, N, len } = path;
+  d = clamp(d, 0, len);
+  let i = 0;
+  while (i < N - 1 && cums[i + 1] < d) i++;
+  const seg = (cums[i + 1] - cums[i]) || 1e-6;
+  const f = (d - cums[i]) / seg;
+  return {
+    x: pts[i*2]     + (pts[(i+1)*2]     - pts[i*2])     * f,
+    y: pts[i*2 + 1] + (pts[(i+1)*2 + 1] - pts[i*2 + 1]) * f
+  };
+}
+
+function tangentAt(path, d) {
+  const a = pointAt(path, Math.max(0, d - 8));
+  const b = pointAt(path, Math.min(path.len, d + 8));
+  const dx = b.x - a.x, dy = b.y - a.y;
+  const m = Math.hypot(dx, dy) || 1;
+  return { x: dx / m, y: dy / m };
+}
+
+function controlPoint(px, py, tx, ty, steer) {
+  const dx = tx - px, dy = ty - py;
+  const dist = Math.hypot(dx, dy) || 1;
+  const nx = dx / dist, ny = dy / dist;
+  const perpX = -ny, perpY = nx;
+  const off = steer * dist * CFG.maxCurve;
+  return {
+    x: (px + tx) * 0.5 + perpX * off,
+    y: (py + ty) * 0.5 + perpY * off
+  };
+}
+
+/* ══════════════════════════════════════════════════════════
+   EFFECTS
+   ══════════════════════════════════════════════════════════ */
+function burst(x, y, n, rgb, speed, size) {
+  if (G.particles.length > CFG.maxParticles) n = Math.max(2, n >> 1);
+  for (let i = 0; i < n; i++) {
+    const a = Math.random() * TAU;
+    const s = speed * rnd(0.25, 1);
+    G.particles.push({
+      x, y,
+      vx: Math.cos(a) * s, vy: Math.sin(a) * s,
+      life: rnd(0.25, 0.6), maxLife: 0.6,
+      r: size * rnd(0.5, 1.4),
+      rgb
+    });
+  }
+}
+
+function ringBurst(x, y, n, rgb, speed, size) {
+  for (let i = 0; i < n; i++) {
+    const a = (i / n) * TAU + Math.random() * 0.15;
+    const s = speed * rnd(0.8, 1.15);
+    G.particles.push({
+      x, y,
+      vx: Math.cos(a) * s, vy: Math.sin(a) * s,
+      life: rnd(0.3, 0.55), maxLife: 0.55,
+      r: size * rnd(0.7, 1.2),
+      rgb
+    });
+  }
+}
+
+function shake(amt) { G.shake = Math.min(30, G.shake + amt); }
+function flash(amt, rgb) { G.flash = Math.min(1, G.flash + amt); G.flashColor = rgb || '255,255,255'; }
+
+/* ══════════════════════════════════════════════════════════
+   ENEMIES
+   ══════════════════════════════════════════════════════════ */
+let enemyIdCounter = 1;
+
+function makeEnemy(type, x, y) {
+  const e = {
+    id: enemyIdCounter++,
+    type,
+    x, y,
+    vx: 0, vy: 0,
+    dead: false,
+    t: rnd(0, 10),
+    flash: 0,
+  };
+  if (type === 'drifter') {
+    e.r = 15; e.hp = 30; e.maxHp = 30; e.rgb = COL.drifter;
+    e.fireTimer = rnd(1.4, 2.6); e.fireRate = 2.3;
+    e.speed = 46;
+  } else if (type === 'orbiter') {
+    e.r = 13; e.hp = 26; e.maxHp = 26; e.rgb = COL.orbiter;
+    e.orbitCx = x; e.orbitCy = y;
+    e.orbitR = rnd(55, 100);
+    e.orbitA = rnd(0, TAU);
+    e.orbitSpd = rnd(0.7, 1.3) * (Math.random() < 0.5 ? -1 : 1);
+    e.fireTimer = rnd(1.6, 2.8); e.fireRate = 2.7;
+  } else if (type === 'turret') {
+    e.r = 20; e.hp = 62; e.maxHp = 62; e.rgb = COL.turret;
+    e.fireTimer = rnd(1.8, 3.0); e.fireRate = 3.1;
+    e.spin = rnd(0, TAU);
+  } else if (type === 'boss') {
+    e.r = 44; e.hp = 220; e.maxHp = 220; e.rgb = COL.boss;
+    e.fireTimer = 2.2; e.fireRate = 2.4;
+    e.spin = 0; e.isBoss = true;
+    e.orbitCx = W / 2; e.orbitCy = H * 0.30;
+    e.orbitR = Math.min(W, H) * 0.22;
+    e.orbitA = 0;
+  }
+  return e;
+}
+
+function spawnPos() {
+  // spawn away from the player, inside the arena
+  for (let i = 0; i < 24; i++) {
+    const x = rnd(W * 0.10, W * 0.90);
+    const y = rnd(H * 0.12, H * 0.88);
+    if (dist2(x, y, P.x, P.y) > 260 * 260) {
+      let inWall = false;
+      for (const w of G.walls) {
+        if (x > w.x - 30 && x < w.x + w.w + 30 && y > w.y - 30 && y < w.y + w.h + 30) { inWall = true; break; }
+      }
+      if (!inWall) return { x, y };
+    }
+  }
+  return { x: W * 0.5, y: H * 0.18 };
+}
+
+function spawnEnemy() {
+  const roll = Math.random();
+  let type;
+  const t = G.time;
+  if (roll < 0.46) type = 'drifter';
+  else if (roll < 0.80) type = 'orbiter';
+  else type = 'turret';
+  if (t < 10) type = 'drifter';
+  const p = spawnPos();
+  G.enemies.push(makeEnemy(type, p.x, p.y));
+  // spawn-in telegraph
+  ringBurst(p.x, p.y, 8, COL.player, 120, 2.4);
+}
+
+function spawnBoss() {
+  const p = spawnPos();
+  const b = makeEnemy('boss', W / 2, H * 0.26);
+  G.enemies.push(b);
+  G.bossAlive = true;
+  G.xmark = null;
+  flash(0.35, '255,60,140');
+  shake(14);
+  ringBurst(b.x, b.y, 26, COL.boss, 260, 3.5);
+}
+
+/* ══════════════════════════════════════════════════════════
+   PROJECTILES
+   ══════════════════════════════════════════════════════════ */
+function fireProjectile(x, y, dirX, dirY, speed, r, rgb, life) {
+  G.projectiles.push({
+    x, y,
+    vx: dirX * speed, vy: dirY * speed,
+    r: r, rgb,
+    life: life || 5,
+    trail: []
+  });
+}
+
+function enemyShoot(e) {
+  const dx = P.x - e.x, dy = P.y - e.y;
+  const d = Math.hypot(dx, dy) || 1;
+  const nx = dx / d, ny = dy / d;
+
+  if (e.type === 'drifter') {
+    fireProjectile(e.x, e.y, nx, ny, 165, 6, COL.proj, 6);
+  } else if (e.type === 'orbiter') {
+    const base = Math.atan2(ny, nx);
+    for (let i = -1; i <= 1; i++) {
+      const a = base + i * 0.24;
+      fireProjectile(e.x, e.y, Math.cos(a), Math.sin(a), 175, 5.5, COL.proj, 6);
+    }
+  } else if (e.type === 'turret') {
+    const base = Math.atan2(ny, nx) + e.spin;
+    for (let i = 0; i < 4; i++) {
+      const a = base + (i / 4) * TAU;
+      fireProjectile(e.x, e.y, Math.cos(a), Math.sin(a), 140, 6.5, COL.proj, 7);
+    }
+    e.spin += 0.4;
+  } else if (e.type === 'boss') {
+    const n = 14;
+    const base = e.spin;
+    for (let i = 0; i < n; i++) {
+      const a = base + (i / n) * TAU;
+      fireProjectile(e.x, e.y, Math.cos(a), Math.sin(a), 155, 7, COL.projBoss, 8);
+    }
+    e.spin += 0.42;
+    // aimed sniper shot
+    fireProjectile(e.x, e.y, nx, ny, 260, 8, COL.projBoss, 5);
+  }
+}
+
+/* ══════════════════════════════════════════════════════════
+   TARGETING
+   ══════════════════════════════════════════════════════════ */
+function pickTarget(x, y) {
+  let best = null, bestScore = Infinity;
+
+  for (const e of G.enemies) {
+    if (e.dead) continue;
+    const d = Math.hypot(e.x - x, e.y - y);
+    const grab = e.r + 36;
+    if (d < grab) {
+      if (dist2(e.x, e.y, P.x, P.y) < 70 * 70) continue;
+      const score = d - e.r * 0.4;
+      if (score < bestScore) { bestScore = score; best = { x, y, kind: 'enemy', ref: e }; }
+    }
+  }
+  for (const w of G.walls) {
+    const cx = clamp(x, w.x, w.x + w.w);
+    const cy = clamp(y, w.y, w.y + w.h);
+    const d = Math.hypot(cx - x, cy - y);
+    if (d < 36) {
+      if (dist2(cx, cy, P.x, P.y) < 70 * 70) continue;
+      if (d < bestScore) { bestScore = d; best = { x, y, kind: 'wall', ref: w }; }
+    }
+  }
+  return best;
+}
+
+/* ══════════════════════════════════════════════════════════
+   TAP HANDLER
+   ══════════════════════════════════════════════════════════ */
+function handleTap(x, y) {
+  if (G.state !== 'playing') return;
+
+  // during planning, any tap (outside stick) = early lock
+  if (P.state === 'planning') { lockDash(); return; }
+
+  const tgt = pickTarget(x, y);
+  if (!tgt) return;
+
+  if (G.mode === 'curve') {
+    if (P.state === 'normal') startPlanning(tgt);
+  } else {
+    if (P.state === 'normal') launchTowards(tgt);
+    else if (P.state === 'dashing' || P.state === 'recovery') {
+      if (G.queued.length < CFG.queueMax) {
+        G.queued.push(tgt);
+        ringBurst(tgt.x, tgt.y, 5, COL.gold, 90, 1.8);
+      }
+    }
+  }
+}
+
+function onLockPressed() {
+  if (G.state !== 'playing') return;
+  if (P.state === 'planning') lockDash();
+}
+
+/* ══════════════════════════════════════════════════════════
+   PLAYER — CURVE MODE
+   ══════════════════════════════════════════════════════════ */
+function startPlanning(tgt) {
+  P.state = 'planning';
+  P.target = tgt;
+  P.planTimer = CFG.planWindow;
+  P.steer = 0;
+  P.joyUsedInPlan = false;
+  P.vx = 0; P.vy = 0;
+  G.arrowVisible = true;
+  G.xmark = { x: tgt.x, y: tgt.y, t: 0, life: 1.6, rot: 0 };
+  ringBurst(tgt.x, tgt.y, 6, COL.player, 110, 1.8);
+}
+
+function planningUpdate(dt) {
+  P.planTimer -= dt;
+
+  const t = P.target;
+  const dx = t.x - P.x, dy = t.y - P.y;
+  const d = Math.hypot(dx, dy) || 1;
+  const perpX = -dy / d, perpY = dx / d;
+
+  const mv = moveVector();
+  let steer = mv.x * perpX + mv.y * perpY;
+  steer = clamp(steer, -1, 1);
+  P.steer = steer;
+
+  // target invalidated?
+  if (t.kind === 'enemy' && t.ref.dead) { cancelPlanning(); return; }
+
+  if (P.planTimer <= 0) lockDash();
+}
+
+function cancelPlanning() {
+  P.state = 'normal';
+  P.target = null;
+  G.arrowVisible = false;
+  G.xmark = null;
+}
+
+function currentPreviewPath() {
+  const t = P.target;
+  const c = controlPoint(P.x, P.y, t.x, t.y, P.steer);
+  return buildPath({ x: P.x, y: P.y }, c, { x: t.x, y: t.y });
+}
+
+function dashSpeedNow() {
+  const mul = 1 + Math.min(P.chain * CFG.chainSpeedBonus, CFG.chainSpeedMax - 1);
+  return CFG.normalSpeed * CFG.dashMultiplier * mul;
+}
+
+function lockDash() {
+  if (P.state !== 'planning' || !P.target) return;
+  const t = P.target;
+  const c = controlPoint(P.x, P.y, t.x, t.y, P.steer);
+  P.path = buildPath({ x: P.x, y: P.y }, c, { x: t.x, y: t.y });
+  P.pathDist = 0;
+  P.pathSpeed = dashSpeedNow();
+  P.state = 'dashing';
+  G.arrowVisible = false;
+  G.xmark = { x: t.x, y: t.y, t: 0, life: 1.6, rot: 0 };
+
+  burst(P.x, P.y, 10, COL.player, 200, 2.2);
+  shake(3);
+  P.trail.length = 0;
+}
+
+/* ── QUEUE MODE ──────────────────────────────────────────── */
+function launchTowards(pt) {
+  const d = Math.hypot(pt.x - P.x, pt.y - P.y);
+  if (d < 70) return;
+  const p1 = { x: (P.x + pt.x) * 0.5, y: (P.y + pt.y) * 0.5 };
+  P.path = buildPath({ x: P.x, y: P.y }, p1, { x: pt.x, y: pt.y });
+  P.pathDist = 0;
+  P.pathSpeed = dashSpeedNow();
+  P.state = 'dashing';
+  P.target = pt;
+  G.xmark = { x: pt.x, y: pt.y, t: 0, life: 1.6, rot: 0 };
+  burst(P.x, P.y, 10, COL.player, 200, 2.2);
+  shake(3);
+  P.trail.length = 0;
+}
+
+function launchQueued() {
+  if (!G.queued.length) return;
+  const t = G.queued.shift();
+  P.chainTimer = CFG.chainWindow;
+  launchTowards(t);
+}
+
+/* ══════════════════════════════════════════════════════════
+   PLAYER UPDATE
+   ══════════════════════════════════════════════════════════ */
+function updatePlayer(dt, gdt) {
+  P.invuln      = Math.max(0, P.invuln - gdt);
+  P.emergencyCd = Math.max(0, P.emergencyCd - gdt);
+  P.dashCd      = Math.max(0, P.dashCd - gdt);
+  P.spawnProtect= Math.max(0, P.spawnProtect - gdt);
+
+  if (P.chainTimer > 0) {
+    P.chainTimer -= gdt;
+    if (P.chainTimer <= 0 && P.chain > 0) {
+      P.chain = 0;
+      G.queued.length = 0;
+      burst(P.x, P.y, 8, '120,140,170', 90, 2);
+    }
+  }
+
+  if (P.state === 'normal')      normalUpdate(gdt);
+  else if (P.state === 'planning') planningUpdate(dt);
+  else if (P.state === 'dashing')  dashUpdate(gdt);
+  else if (P.state === 'recovery') recoveryUpdate(gdt);
+
+  // trail recording
+  if (P.state === 'dashing' || Math.hypot(P.vx, P.vy) > CFG.normalSpeed * 1.8) {
+    const last = P.trail[P.trail.length - 1];
+    if (!last || dist2(last.x, last.y, P.x, P.y) > 36) {
+      P.trail.push({ x: P.x, y: P.y, t: G.time });
+      if (P.trail.length > 60) P.trail.shift();
+    }
+  }
+  while (P.trail.length && G.time - P.trail[0].t > 0.32) P.trail.shift();
+}
+
+function normalUpdate(gdt) {
+  const mv = moveVector();
+  const tvx = mv.x * CFG.normalSpeed;
+  const tvy = mv.y * CFG.normalSpeed;
+  const k = 1 - Math.exp(-14 * gdt);
+  P.vx = lerp(P.vx, tvx, k);
+  P.vy = lerp(P.vy, tvy, k);
+
+  P.x += P.vx * gdt;
+  P.y += P.vy * gdt;
+
+  resolveWallCollision(0.0);
+  clampArena(0.0);
+  checkContactDamage(gdt);
+}
+
+function recoveryUpdate(gdt) {
+  const mv = moveVector();
+  P.vx += mv.x * CFG.normalSpeed * 2.4 * gdt;
+  P.vy += mv.y * CFG.normalSpeed * 2.4 * gdt;
+
+  const drag = Math.exp(-CFG.recoveryDrag * gdt);
+  P.vx *= drag;
+  P.vy *= drag;
+
+  P.x += P.vx * gdt;
+  P.y += P.vy * gdt;
+
+  resolveWallCollision(0.55);
+  clampArena(0.55);
+  checkContactDamage(gdt);
+
+  if (P.dashCd <= 0) {
+    P.state = 'normal';
+    P.vx *= 0.4; P.vy *= 0.4;
+    if (G.mode === 'queue' && G.queued.length) launchQueued();
+  }
+}
+
+/* ── DASH ────────────────────────────────────────────────── */
+function dashUpdate(gdt) {
+  const path = P.path;
+  if (!path) { P.state = 'normal'; return; }
+
+  let remaining = P.pathSpeed * gdt;
+  let hit = null;
+  let guard = 0;
+
+  while (remaining > 0 && guard++ < 200) {
+    const step = Math.min(remaining, 11);
+    remaining -= step;
+    P.pathDist += step;
+
+    const atEnd = P.pathDist >= path.len;
+    const d = Math.min(P.pathDist, path.len);
+    const pt = pointAt(path, d);
+    const prevX = P.x, prevY = P.y;
+    P.x = pt.x; P.y = pt.y;
+
+    // velocity for visuals / exit
+    const tan = tangentAt(path, d);
+    P.vx = tan.x * P.pathSpeed;
+    P.vy = tan.y * P.pathSpeed;
+
+    // trail sample
+    if (P.trail.length === 0 || dist2(prevX, prevY, P.x, P.y) > 30) {
+      P.trail.push({ x: P.x, y: P.y, t: G.time });
+      if (P.trail.length > 60) P.trail.shift();
+    }
+
+    // projectile collision during dash
+    if (P.invuln <= 0) {
+      for (const pr of G.projectiles) {
+        if (pr.dead) continue;
+        const rr = pr.r + P.r * 0.85;
+        if (dist2(pr.x, pr.y, P.x, P.y) < rr * rr) {
+          damagePlayer(12);
+          pr.dead = true;
+          burst(pr.x, pr.y, 8, pr.rgb, 160, 2);
+          break;
+        }
+      }
+    }
+
+    // impact check
+    hit = checkDashHit(P.x, P.y);
+    if (hit) break;
+    if (atEnd) break;
+  }
+
+  if (hit) {
+    resolveImpact(hit);
+    return;
+  }
+
+  if (P.pathDist >= path.len) {
+    // reached the end without impact → miss
+    missDash();
+  }
+}
+
+function checkDashHit(x, y) {
+  for (const e of G.enemies) {
+    if (e.dead) continue;
+    const rr = e.r + P.r;
+    if (dist2(e.x, e.y, x, y) <= rr * rr) return { type: 'enemy', ref: e, x: e.x, y: e.y };
+  }
+  for (const w of G.walls) {
+    if (x > w.x - P.r && x < w.x + w.w + P.r && y > w.y - P.r && y < w.y + w.h + P.r) {
+      return { type: 'wall', ref: w, x, y };
+    }
+  }
+  return null;
+}
+
+function resolveImpact(hit) {
+  // instant stop
+  P.vx = 0; P.vy = 0;
+  P.state = 'normal';
+  P.path = null;
+  P.pathDist = 0;
+  P.target = null;
+  G.xmark = null;
+  G.arrowVisible = false;
+
+  // chain
+  P.chain++;
+  if (P.chain > P.maxChain) P.maxChain = P.chain;
+  P.chainTimer = CFG.chainWindow;
+
+  const chain = P.chain;
+  const dmg = 40 + chain * 13;
+
+  let ix = hit.x, iy = hit.y;
+
+  if (hit.type === 'enemy') {
+    const e = hit.ref;
+    damageEnemy(e, dmg);
+    G.score += 12 * chain;
+    burst(ix, iy, 16 + Math.min(chain, 14), e.rgb, 260, 3);
+    ringBurst(ix, iy, 10, COL.playerHi, 210, 2);
+    flash(0.16 + Math.min(chain * 0.02, 0.4), '180,255,255');
+    shake(5 + Math.min(chain, 12));
+  } else {
+    // wall
+    G.score += 5 * chain;
+    burst(ix, iy, 10 + Math.min(chain, 10), COL.wall, 200, 2.4);
+    flash(0.10, '140,200,255');
+    shake(4 + Math.min(chain, 8) * 0.6);
+  }
+
+  G.hitStop = CFG.hitStop;
+  G.score += chain * 2;
+
+  // queue mode: immediately launch the next queued target
+  if (G.mode === 'queue' && G.queued.length) {
+    // small delay via hitstop already gives rhythm
+    launchQueued();
+  }
+}
+
+function damageEnemy(e, amount) {
+  e.hp -= amount;
+  e.flash = 0.18;
+  if (e.hp <= 0) {
+    e.dead = true;
+    G.kills++;
+    G.score += e.isBoss ? 600 : 45;
+    const n = e.isBoss ? 46 : 18;
+    burst(e.x, e.y, n, e.rgb, e.isBoss ? 460 : 280, e.isBoss ? 5 : 3);
+    ringBurst(e.x, e.y, e.isBoss ? 30 : 12, COL.playerHi, e.isBoss ? 380 : 220, 2.5);
+    shake(e.isBoss ? 26 : 8);
+    flash(e.isBoss ? 0.8 : 0.2, e.rgb);
+    if (e.isBoss) {
+      G.bossAlive = false;
+      G.bossTimer = 55;
+      // boss death refreshes some health
+      P.hp = Math.min(P.maxHp, P.hp + 25);
+    }
+  }
+}
+
+function missDash() {
+  const path = P.path;
+  const tan = path ? tangentAt(path, path.len) : { x: 0, y: 0 };
+  P.state = 'recovery';
+  P.dashCd = CFG.missPenalty;
+  P.chain = 0;
+  P.chainTimer = 0;
+  G.queued.length = 0;
+  P.vx = tan.x * P.pathSpeed * CFG.recoveryExit;
+  P.vy = tan.y * P.pathSpeed * CFG.recoveryExit;
+  P.path = null;
+  P.target = null;
+  G.xmark = null;
+  G.arrowVisible = false;
+
+  burst(P.x, P.y, 12, '255,120,120', 190, 2.4);
+  flash(0.18, '255,90,90');
+  shake(6);
+}
+
+/* ══════════════════════════════════════════════════════════
+   COLLISION HELPERS
+   ══════════════════════════════════════════════════════════ */
+function resolveWallCollision(restitution) {
+  for (const w of G.walls) {
+    const cx = clamp(P.x, w.x, w.x + w.w);
+    const cy = clamp(P.y, w.y, w.y + w.h);
+    const dx = P.x - cx, dy = P.y - cy;
+    const d2 = dx * dx + dy * dy;
+    if (d2 < P.r * P.r) {
+      let d = Math.sqrt(d2);
+      let nx, ny;
+      if (d < 0.001) {
+        // deep inside — push out along smallest axis
+        const left = P.x - w.x, right = w.x + w.w - P.x;
+        const top = P.y - w.y, bottom = w.y + w.h - P.y;
+        const m = Math.min(left, right, top, bottom);
+        if (m === left)       { nx = -1; ny = 0; d = left; }
+        else if (m === right) { nx = 1;  ny = 0; d = right; }
+        else if (m === top)   { nx = 0;  ny = -1; d = top; }
+        else                  { nx = 0;  ny = 1;  d = bottom; }
+        P.x = cx + nx * (P.r + 0.5);
+        P.y = cy + ny * (P.r + 0.5);
+      } else {
+        nx = dx / d; ny = dy / d;
+        P.x = cx + nx * P.r;
+        P.y = cy + ny * P.r;
+      }
+      if (restitution > 0) {
+        const dot = P.vx * nx + P.vy * ny;
+        if (dot < 0) {
+          P.vx -= (1 + restitution) * dot * nx;
+          P.vy -= (1 + restitution) * dot * ny;
+          if (Math.hypot(P.vx, P.vy) > 500) {
+            burst(P.x, P.y, 6, COL.wall, 160, 2);
+            shake(2.5);
+          }
+        }
+      } else {
+        P.vx *= 0.4; P.vy *= 0.4;
+      }
+    }
+  }
+}
+
+function clampArena(rest) {
+  const pad = P.r + 2;
+  if (P.x < pad)     { P.x = pad;     if (rest > 0 && P.vx < 0) { P.vx = -P.vx * rest; burst(P.x, P.y, 5, COL.wall, 130, 1.8); } else P.vx = Math.max(P.vx, 0); }
+  if (P.x > W - pad) { P.x = W - pad; if (rest > 0 && P.vx > 0) { P.vx = -P.vx * rest; burst(P.x, P.y, 5, COL.wall, 130, 1.8); } else P.vx = Math.min(P.vx, 0); }
+  if (P.y < pad)     { P.y = pad;     if (rest > 0 && P.vy < 0) { P.vy = -P.vy * rest; burst(P.x, P.y, 5, COL.wall, 130, 1.8); } else P.vy = Math.max(P.vy, 0); }
+  if (P.y > H - pad) { P.y = H - pad; if (rest > 0 && P.vy > 0) { P.vy = -P.vy * rest; burst(P.x, P.y, 5, COL.wall, 130, 1.8); } else P.vy = Math.min(P.vy, 0); }
+}
+
+function checkContactDamage(gdt) {
+  if (P.invuln > 0 || P.spawnProtect > 0) return;
+  for (const e of G.enemies) {
+    if (e.dead) continue;
+    const rr = e.r + P.r;
+    if (dist2(e.x, e.y, P.x, P.y) < rr * rr) {
+      damagePlayer(14);
+      const dx = P.x - e.x, dy = P.y - e.y;
+      const d = Math.hypot(dx, dy) || 1;
+      P.vx = (dx / d) * 420;
+      P.vy = (dy / d) * 420;
+      break;
+    }
+  }
+}
+
+function damagePlayer(amount) {
+  if (P.invuln > 0 || P.spawnProtect > 0) return;
+  P.hp -= amount;
+  P.invuln = 1.0;
+  flash(0.3, '255,60,90');
+  shake(9);
+  burst(P.x, P.y, 14, '255,90,120', 220, 2.6);
+  if (P.hp <= 0) { P.hp = 0; gameOver(); }
+}
+
+/* ══════════════════════════════════════════════════════════
+   EMERGENCY STOP
+   ══════════════════════════════════════════════════════════ */
+function doEmergencyStop() {
+  if (G.state !== 'playing') return;
+  if (P.emergencyCd > 0) return;
+
+  P.emergencyCd = CFG.emergencyCd;
+  P.vx = 0; P.vy = 0;
+  P.state = 'normal';
+  P.path = null;
+  P.target = null;
+  P.dashCd = 0;
+  P.chain = 0;
+  P.chainTimer = 0;
+  G.queued.length = 0;
+  G.xmark = null;
+  G.arrowVisible = false;
+
+  ringBurst(P.x, P.y, 26, '160,220,255', 300, 3);
+  burst(P.x, P.y, 16, '255,255,255', 200, 2.4);
+  flash(0.35, '160,220,255');
+  shake(10);
+}
+
+/* ══════════════════════════════════════════════════════════
+   ENEMY UPDATE
+   ══════════════════════════════════════════════════════════ */
+function updateEnemies(gdt) {
+  for (const e of G.enemies) {
+    if (e.dead) continue;
+    e.t += gdt;
+    e.flash = Math.max(0, e.flash - gdt);
+
+    if (e.type === 'drifter') {
+      const dx = P.x - e.x, dy = P.y - e.y;
+      const d = Math.hypot(dx, dy) || 1;
+      // keep some distance
+      const desired = 220;
+      const push = d > desired ? 1 : -0.55;
+      e.vx = lerp(e.vx, (dx / d) * e.speed * push, 1 - Math.exp(-3 * gdt));
+      e.vy = lerp(e.vy, (dy / d) * e.speed * push, 1 - Math.exp(-3 * gdt));
+      e.x += e.vx * gdt;
+      e.y += e.vy * gdt;
+
+    } else if (e.type === 'orbiter') {
+      e.orbitA += e.orbitSpd * gdt;
+      e.x = e.orbitCx + Math.cos(e.orbitA) * e.orbitR;
+      e.y = e.orbitCy + Math.sin(e.orbitA) * e.orbitR;
+
+    } else if (e.type === 'turret') {
+      // stationary, slight bob
+      e.spin += 0.15 * gdt;
+    } else if (e.type === 'boss') {
+      e.orbitA += 0.28 * gdt;
+      e.x = e.orbitCx + Math.cos(e.orbitA) * e.orbitR * 1.5;
+      e.y = e.orbitCy + Math.sin(e.orbitA * 0.7) * e.orbitR * 0.55;
+    }
+
+    // clamp inside arena
+    e.x = clamp(e.x, e.r + 6, W - e.r - 6);
+    e.y = clamp(e.y, e.r + 6, H - e.r - 6);
+
+    // firing
+    e.fireTimer -= gdt;
+    if (e.fireTimer <= 0) {
+      if (dist2(e.x, e.y, P.x, P.y) < 1400 * 1400) {
+        enemyShoot(e);
+      }
+      e.fireTimer = e.fireRate * rnd(0.85, 1.2);
+    }
+  }
+
+  // cleanup
+  for (let i = G.enemies.length - 1; i >= 0; i--) {
+    if (G.enemies[i].dead) G.enemies.splice(i, 1);
+  }
+}
+
+/* ══════════════════════════════════════════════════════════
+   PROJECTILE UPDATE
+   ══════════════════════════════════════════════════════════ */
+function updateProjectiles(gdt) {
+  for (const p of G.projectiles) {
+    if (p.dead) continue;
+    p.x += p.vx * gdt;
+    p.y += p.vy * gdt;
+    p.life -= gdt;
+
+    p.trail.push({ x: p.x, y: p.y });
+    if (p.trail.length > 6) p.trail.shift();
+
+    if (p.life <= 0 || p.x < -60 || p.x > W + 60 || p.y < -60 || p.y > H + 60) {
+      p.dead = true;
+      continue;
+    }
+
+    // hit player (non-dash movement)
+    if (P.invuln <= 0 && P.spawnProtect <= 0) {
+      const rr = p.r + P.r * 0.85;
+      if (dist2(p.x, p.y, P.x, P.y) < rr * rr) {
+        damagePlayer(12);
+        p.dead = true;
+        burst(p.x, p.y, 8, p.rgb, 160, 2);
+      }
+    }
+  }
+  for (let i = G.projectiles.length - 1; i >= 0; i--) {
+    if (G.projectiles[i].dead) G.projectiles.splice(i, 1);
+  }
+}
+
+/* ══════════════════════════════════════════════════════════
+   PARTICLES
+   ══════════════════════════════════════════════════════════ */
+function updateParticles(gdt) {
+  for (let i = G.particles.length - 1; i >= 0; i--) {
+    const p = G.particles[i];
+    p.life -= gdt;
+    if (p.life <= 0) { G.particles.splice(i, 1); continue; }
+    p.x += p.vx * gdt;
+    p.y += p.vy * gdt;
+    const drag = Math.exp(-3.5 * gdt);
+    p.vx *= drag;
+    p.vy *= drag;
+  }
+}
+
+/* ══════════════════════════════════════════════════════════
+   SPAWN LOGIC
+   ══════════════════════════════════════════════════════════ */
+function updateSpawns(gdt) {
+  const maxEnemies = Math.min(6 + Math.floor(G.time / 22), 16);
+  const activeCount = G.enemies.filter(e => !e.isBoss).length;
+
+  G.spawnTimer -= gdt;
+  if (G.spawnTimer <= 0 && activeCount < maxEnemies) {
+    spawnEnemy();
+    G.spawnTimer = Math.max(0.35, 1.7 - G.time * 0.012) * rnd(0.7, 1.3);
+  }
+
+  if (!G.bossAlive) {
+    G.bossTimer -= gdt;
+    if (G.bossTimer <= 0) { spawnBoss(); }
+  }
+
+  if (G.hintTimer > 0) G.hintTimer -= gdt;
+}
+
+/* ══════════════════════════════════════════════════════════
+   MAIN UPDATE
+   ══════════════════════════════════════════════════════════ */
+function update(dt) {
+  let ts = 1;
+  if (P.state === 'planning') ts = CFG.planSlow;
+  if (G.hitStop > 0) { G.hitStop -= dt; ts = 0.14; }
+  G.timeScale = lerp(G.timeScale, ts, 1 - Math.exp(-26 * dt));
+  const gdt = dt * G.timeScale;
+
+  G.time += gdt;
+
+  updatePlayer(dt, gdt);
+  updateEnemies(gdt);
+  updateProjectiles(gdt);
+  updateParticles(gdt);
+  updateSpawns(gdt);
+
+  // x mark lifetime
+  if (G.xmark) {
+    G.xmark.t += dt;
+    G.xmark.rot += dt * 2.4;
+    if (G.xmark.t > G.xmark.life) G.xmark = null;
+  }
+
+  G.shake *= Math.exp(-7.5 * dt);
+  G.flash *= Math.exp(-9 * dt);
+}
+
+/* ══════════════════════════════════════════════════════════
+   RENDER
+   ══════════════════════════════════════════════════════════ */
+function drawBackground() {
+  ctx.fillStyle = '#05060a';
+  ctx.fillRect(0, 0, W, H);
+
+  // grid
+  const gs = 62;
+  ctx.strokeStyle = 'rgba(60,100,150,0.11)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  for (let x = (W % gs) / 2; x < W; x += gs) { ctx.moveTo(x, 0); ctx.lineTo(x, H); }
+  for (let y = (H % gs) / 2; y < H; y += gs) { ctx.moveTo(0, y); ctx.lineTo(W, y); }
+  ctx.stroke();
+
+  // chain-reactive background pulse
+  if (P.chain > 2) {
+    const a = Math.min(P.chain * 0.008, 0.14);
+    const g = ctx.createRadialGradient(P.x, P.y, 0, P.x, P.y, Math.max(W, H) * 0.7);
+    g.addColorStop(0, `rgba(90,255,244,${a})`);
+    g.addColorStop(1, 'rgba(90,255,244,0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, W, H);
+  }
+
+  if (vignette) { ctx.fillStyle = vignette; ctx.fillRect(0, 0, W, H); }
+}
+
+function drawWalls() {
+  ctx.globalCompositeOperation = 'lighter';
+  for (const w of G.walls) {
+    // outer glow
+    ctx.strokeStyle = 'rgba(96,164,255,0.16)';
+    ctx.lineWidth = 10;
+    ctx.strokeRect(w.x, w.y, w.w, w.h);
+    // core line
+    ctx.strokeStyle = 'rgba(150,210,255,0.95)';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(w.x, w.y, w.w, w.h);
+  }
+  ctx.globalCompositeOperation = 'source-over';
+  for (const w of G.walls) {
+    ctx.fillStyle = 'rgba(96,164,255,0.055)';
+    ctx.fillRect(w.x, w.y, w.w, w.h);
+  }
+}
+
+function drawEnemies() {
+  ctx.globalCompositeOperation = 'lighter';
+  for (const e of G.enemies) {
+    if (e.dead) continue;
+    const pulse = 1 + Math.sin(e.t * 3) * 0.06;
+    const R = e.r * pulse;
+
+    drawGlow(e.x, e.y, R * 2.6, e.rgb, 0.42);
+
+    // body
+    ctx.fillStyle = `rgba(${e.rgb},0.95)`;
+    if (e.type === 'orbiter') {
+      ctx.beginPath();
+      const sides = 3;
+      for (let i = 0; i < sides; i++) {
+        const a = (i / sides) * TAU + e.t * 1.6;
+        const px = e.x + Math.cos(a) * R;
+        const py = e.y + Math.sin(a) * R;
+        if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+      }
+      ctx.closePath();
+      ctx.fill();
+    } else if (e.type === 'turret') {
+      ctx.beginPath();
+      const sides = 6;
+      for (let i = 0; i < sides; i++) {
+        const a = (i / sides) * TAU + e.spin;
+        const px = e.x + Math.cos(a) * R;
+        const py = e.y + Math.sin(a) * R;
+        if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+      }
+      ctx.closePath();
+      ctx.fill();
+    } else if (e.type === 'boss') {
+      ctx.beginPath();
+      ctx.arc(e.x, e.y, R, 0, TAU);
+      ctx.fill();
+      // inner core
+      ctx.fillStyle = 'rgba(255,220,240,0.9)';
+      ctx.beginPath();
+      ctx.arc(e.x, e.y, R * 0.45, 0, TAU);
+      ctx.fill();
+    } else {
+      ctx.beginPath();
+      ctx.arc(e.x, e.y, R, 0, TAU);
+      ctx.fill();
+    }
+
+    // hit flash
+    if (e.flash > 0) {
+      drawGlow(e.x, e.y, R * 3.4, '255,255,255', e.flash * 4);
+    }
+
+    // fire telegraph
+    const charge = 1 - clamp(e.fireTimer / 0.6, 0, 1);
+    if (charge > 0.02 && charge < 1) {
+      ctx.strokeStyle = `rgba(${e.rgb},${0.5 * charge})`;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(e.x, e.y, R + 6 + (1 - charge) * 8, 0, TAU * charge);
+      ctx.stroke();
+    }
+
+    // hp arc for multi-hit enemies
+    if (e.maxHp > 40 && e.hp < e.maxHp) {
+      const frac = e.hp / e.maxHp;
+      ctx.strokeStyle = 'rgba(255,255,255,0.85)';
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.arc(e.x, e.y, R + 9, -Math.PI / 2, -Math.PI / 2 + TAU * frac);
+      ctx.stroke();
+    }
+
+    // boss aim ring
+    if (e.isBoss) {
+      ctx.strokeStyle = 'rgba(255,60,140,0.25)';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.arc(e.x, e.y, R + 18 + Math.sin(e.t * 2) * 4, 0, TAU);
+      ctx.stroke();
+    }
+  }
+  ctx.globalCompositeOperation = 'source-over';
+}
+
+function drawProjectiles() {
+  ctx.globalCompositeOperation = 'lighter';
+  for (const p of G.projectiles) {
+    // trail
+    for (let i = 0; i < p.trail.length; i++) {
+      const t = p.trail[i];
+      const a = (i / p.trail.length) * 0.35;
+      ctx.fillStyle = `rgba(${p.rgb},${a})`;
+      ctx.beginPath();
+      ctx.arc(t.x, t.y, p.r * (0.3 + i / p.trail.length * 0.7), 0, TAU);
+      ctx.fill();
+    }
+    drawGlow(p.x, p.y, p.r * 3.2, p.rgb, 0.7);
+    ctx.fillStyle = 'rgba(255,255,255,0.95)';
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.r * 0.5, 0, TAU);
+    ctx.fill();
+  }
+  ctx.globalCompositeOperation = 'source-over';
+}
+
+function drawTrail() {
+  const tr = P.trail;
+  if (tr.length < 2) return;
+  ctx.globalCompositeOperation = 'lighter';
+  ctx.lineCap = 'round';
+  const boost = Math.min(P.chain * 0.06, 0.85);
+  for (let i = 1; i < tr.length; i++) {
+    const a = i / tr.length;
+    const p0 = tr[i - 1], p1 = tr[i];
+    const age = clamp(1 - (G.time - p1.t) / 0.32, 0, 1);
+    ctx.strokeStyle = `rgba(90,255,244,${0.55 * a * age * (0.7 + boost)})`;
+    ctx.lineWidth = (2 + 11 * a) * (1 + boost * 0.6);
+    ctx.beginPath();
+    ctx.moveTo(p0.x, p0.y);
+    ctx.lineTo(p1.x, p1.y);
+    ctx.stroke();
+  }
+  // bright core
+  for (let i = 1; i < tr.length; i++) {
+    const a = i / tr.length;
+    const p0 = tr[i - 1], p1 = tr[i];
+    const age = clamp(1 - (G.time - p1.t) / 0.32, 0, 1);
+    ctx.strokeStyle = `rgba(220,255,255,${0.55 * a * age})`;
+    ctx.lineWidth = 1.8 * a * (1 + boost);
+    ctx.beginPath();
+    ctx.moveTo(p0.x, p0.y);
+    ctx.lineTo(p1.x, p1.y);
+    ctx.stroke();
+  }
+  ctx.globalCompositeOperation = 'source-over';
+}
+
+function drawPreview() {
+  if (!G.arrowVisible || P.state !== 'planning' || !P.target) return;
+
+  const path = currentPreviewPath();
+  const t = P.target;
+
+  ctx.globalCompositeOperation = 'lighter';
+
+  // wide soft glow stroke
+  ctx.strokeStyle = 'rgba(90,255,244,0.14)';
+  ctx.lineWidth = 12;
+  ctx.beginPath();
+  ctx.moveTo(path.pts[0], path.pts[1]);
+  for (let i = 1; i <= path.N; i++) ctx.lineTo(path.pts[i*2], path.pts[i*2+1]);
+  ctx.stroke();
+
+  // animated dashed core
+  ctx.setLineDash([14, 12]);
+  ctx.lineDashOffset = -G.time * 90;
+  ctx.strokeStyle = 'rgba(190,255,255,0.95)';
+  ctx.lineWidth = 2.5;
+  ctx.beginPath();
+  ctx.moveTo(path.pts[0], path.pts[1]);
+  for (let i = 1; i <= path.N; i++) ctx.lineTo(path.pts[i*2], path.pts[i*2+1]);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.lineDashOffset = 0;
+
+  // arrowhead at the end
+  const end = pointAt(path, path.len);
+  const tan = tangentAt(path, path.len);
+  const ang = Math.atan2(tan.y, tan.x);
+  ctx.save();
+  ctx.translate(end.x, end.y);
+  ctx.rotate(ang);
+  ctx.fillStyle = 'rgba(190,255,255,0.95)';
+  ctx.beginPath();
+  ctx.moveTo(16, 0);
+  ctx.lineTo(-8, 8);
+  ctx.lineTo(-8, -8);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+
+  // planning timer arc around the player
+  const frac = clamp(P.planTimer / CFG.planWindow, 0, 1);
+  ctx.strokeStyle = `rgba(90,255,244,${0.35 + frac * 0.5})`;
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.arc(P.x, P.y, P.r + 16, -Math.PI / 2, -Math.PI / 2 + TAU * frac);
+  ctx.stroke();
+
+  ctx.globalCompositeOperation = 'source-over';
+}
+
+function drawXMark() {
+  if (!G.xmark) return;
+  const m = G.xmark;
+  const fade = clamp(1 - (m.t / m.life) * 0.4, 0, 1);
+  const s = 11 + Math.sin(m.t * 14) * 2;
+
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  ctx.translate(m.x, m.y);
+  ctx.rotate(m.rot);
+
+  ctx.strokeStyle = `rgba(255,90,150,${0.35 * fade})`;
+  ctx.lineWidth = 9;
+  ctx.beginPath();
+  ctx.moveTo(-s, -s); ctx.lineTo(s, s);
+  ctx.moveTo(s, -s);  ctx.lineTo(-s, s);
+  ctx.stroke();
+
+  ctx.strokeStyle = `rgba(255,255,255,${fade})`;
+  ctx.lineWidth = 2.6;
+  ctx.beginPath();
+  ctx.moveTo(-s, -s); ctx.lineTo(s, s);
+  ctx.moveTo(s, -s);  ctx.lineTo(-s, s);
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawQueuedMarkers() {
+  if (G.mode !== 'queue' || !G.queued.length) return;
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  for (let i = 0; i < G.queued.length; i++) {
+    const q = G.queued[i];
+    const a = 0.75 - i * 0.13;
+    const s = 8 - i;
+    ctx.strokeStyle = `rgba(255,232,120,${a})`;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(q.x - s, q.y - s); ctx.lineTo(q.x + s, q.y + s);
+    ctx.moveTo(q.x + s, q.y - s); ctx.lineTo(q.x - s, q.y + s);
+    ctx.stroke();
+    ctx.strokeStyle = `rgba(255,232,120,${a * 0.4})`;
+    ctx.beginPath();
+    ctx.arc(q.x, q.y, s + 6, 0, TAU);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawPlayer() {
+  const pulse = 1 + Math.sin(G.time * 14) * 0.07;
+  const R = P.r * pulse;
+  const chainBoost = Math.min(P.chain * 0.05, 0.7);
+
+  ctx.globalCompositeOperation = 'lighter';
+
+  // outer aura
+  drawGlow(P.x, P.y, R * (3.0 + chainBoost * 2.2), COL.player, 0.5);
+  drawGlow(P.x, P.y, R * 1.7, COL.playerHi, 0.6);
+
+  // body
+  ctx.fillStyle = 'rgba(120,255,248,1)';
+  ctx.beginPath();
+  ctx.arc(P.x, P.y, R, 0, TAU);
+  ctx.fill();
+
+  // white core
+  ctx.fillStyle = 'rgba(255,255,255,0.95)';
+  ctx.beginPath();
+  ctx.arc(P.x, P.y, R * 0.48, 0, TAU);
+  ctx.fill();
+
+  // invulnerability shimmer
+  if (P.invuln > 0) {
+    const a = 0.35 + Math.sin(G.time * 40) * 0.25;
+    ctx.strokeStyle = `rgba(255,120,150,${a})`;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(P.x, P.y, R + 8, 0, TAU);
+    ctx.stroke();
+  }
+
+  // recovery cooldown ring
+  if (P.state === 'recovery' && P.dashCd > 0) {
+    const f = 1 - P.dashCd / CFG.missPenalty;
+    ctx.strokeStyle = 'rgba(255,90,90,0.85)';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(P.x, P.y, R + 14, -Math.PI / 2, -Math.PI / 2 + TAU * f);
+    ctx.stroke();
+  }
+
+  ctx.globalCompositeOperation = 'source-over';
+}
+
+function drawParticles() {
+  ctx.globalCompositeOperation = 'lighter';
+  for (const p of G.particles) {
+    const a = clamp(p.life / p.maxLife, 0, 1);
+    drawGlow(p.x, p.y, p.r * 3.4, p.rgb, a * 0.85);
+  }
+  ctx.globalCompositeOperation = 'source-over';
+}
+
+/* ── HUD ─────────────────────────────────────────────────── */
+function drawHUD() {
+  const compact = W < 620;
+
+  // ── chain
+  if (P.chain > 0) {
+    const scale = 1 + Math.min(P.chain * 0.035, 0.9);
+    const size = Math.round((compact ? 40 : 56) * scale);
+    ctx.save();
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.font = `800 ${size}px ui-monospace, monospace`;
+    const hue = P.chain > 12 ? '255,120,200' : P.chain > 6 ? '255,232,120' : '140,255,250';
+    ctx.shadowColor = `rgba(${hue},0.95)`;
+    ctx.shadowBlur = 22;
+    ctx.fillStyle = `rgba(${hue},1)`;
+    ctx.fillText('×' + P.chain, W / 2, compact ? 62 : 78);
+    ctx.shadowBlur = 0;
+    ctx.font = `600 ${compact ? 10 : 12}px ui-monospace, monospace`;
+    ctx.fillStyle = 'rgba(160,200,220,0.65)';
+    ctx.fillText('CHAIN', W / 2, (compact ? 62 : 78) + size * 0.62);
+
+    // chain timer bar
+    const bw = 120, bh = 3;
+    const frac = clamp(P.chainTimer / CFG.chainWindow, 0, 1);
+    ctx.fillStyle = 'rgba(120,160,190,0.22)';
+    ctx.fillRect(W / 2 - bw / 2, (compact ? 62 : 78) + size * 0.62 + 14, bw, bh);
+    ctx.fillStyle = `rgba(${hue},0.95)`;
+    ctx.fillRect(W / 2 - bw / 2, (compact ? 62 : 78) + size * 0.62 + 14, bw * frac, bh);
+    ctx.restore();
+  }
+
+  // ── health
+  const hw = compact ? 110 : 170, hh = 8;
+  const hx = 20, hy = 24;
+  ctx.save();
+  ctx.fillStyle = 'rgba(120,160,190,0.18)';
+  ctx.fillRect(hx, hy, hw, hh);
+  const hf = clamp(P.hp / P.maxHp, 0, 1);
+  const hcol = hf > 0.5 ? '90,255,200' : hf > 0.25 ? '255,210,90' : '255,80,110';
+  ctx.fillStyle = `rgba(${hcol},0.95)`;
+  ctx.fillRect(hx, hy, hw * hf, hh);
+  ctx.shadowColor = `rgba(${hcol},0.9)`;
+  ctx.shadowBlur = 12;
+  ctx.fillRect(hx, hy, hw * hf, hh);
+  ctx.shadowBlur = 0;
+  ctx.font = '600 10px ui-monospace, monospace';
+  ctx.fillStyle = 'rgba(160,200,220,0.7)';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'alphabetic';
+  ctx.fillText('INTEGRITY', hx, hy - 6);
+  ctx.restore();
+
+  // ── score
+  ctx.save();
+  ctx.textAlign = 'right';
+  ctx.textBaseline = 'alphabetic';
+  ctx.font = '800 22px ui-monospace, monospace';
+  ctx.fillStyle = 'rgba(140,220,255,0.95)';
+  ctx.shadowColor = 'rgba(90,200,255,0.8)';
+  ctx.shadowBlur = 14;
+  ctx.fillText(String(Math.floor(G.score)).padStart(5, '0'), W - 20, 38);
+  ctx.shadowBlur = 0;
+  ctx.font = '600 10px ui-monospace, monospace';
+  ctx.fillStyle = 'rgba(160,200,220,0.6)';
+  ctx.fillText(G.mode === 'curve' ? 'CURVE MODE' : 'QUEUE MODE', W - 20, 54);
+  ctx.restore();
+
+  // ── emergency stop button
+  const ready = P.emergencyCd <= 0;
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  const er = ESTOP.r;
+  if (ready) {
+    drawGlow(ESTOP.x, ESTOP.y, er * 2.0, '255,120,160', 0.28 + Math.sin(G.time * 3) * 0.1);
+    ctx.strokeStyle = 'rgba(255,120,160,0.95)';
+  } else {
+    ctx.strokeStyle = 'rgba(120,140,160,0.45)';
+  }
+  ctx.lineWidth = 2.5;
+  ctx.beginPath();
+  ctx.arc(ESTOP.x, ESTOP.y, er, 0, TAU);
+  ctx.stroke();
+
+  if (!ready) {
+    const f = 1 - P.emergencyCd / CFG.emergencyCd;
+    ctx.strokeStyle = 'rgba(255,120,160,0.9)';
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.arc(ESTOP.x, ESTOP.y, er + 6, -Math.PI / 2, -Math.PI / 2 + TAU * f);
+    ctx.stroke();
+  }
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.font = '800 11px ui-monospace, monospace';
+  ctx.fillStyle = ready ? 'rgba(255,180,205,1)' : 'rgba(120,140,160,0.55)';
+  ctx.fillText('STOP', ESTOP.x, ESTOP.y - 5);
+  ctx.font = '600 9px ui-monospace, monospace';
+  ctx.fillStyle = ready ? 'rgba(255,180,205,0.7)' : 'rgba(120,140,160,0.4)';
+  ctx.fillText(ready ? (isTouch ? 'TAP' : 'SHIFT') : Math.ceil(P.emergencyCd) + 's', ESTOP.x, ESTOP.y + 9);
+  ctx.restore();
+
+  // ── joystick (touch devices)
+  if (isTouch) {
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    const ja = input.joyActive ? 0.4 : 0.18;
+    ctx.strokeStyle = `rgba(120,200,240,${ja})`;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(JOY.x, JOY.y, JOY.r, 0, TAU);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(JOY.x, JOY.y, JOY.r * 0.42, 0, TAU);
+    ctx.stroke();
+
+    const kx = JOY.x + input.joyVec.x * JOY.r * 0.72;
+    const ky = JOY.y + input.joyVec.y * JOY.r * 0.72;
+    drawGlow(kx, ky, 30, '120,220,255', input.joyActive ? 0.55 : 0.28);
+    ctx.fillStyle = `rgba(160,240,255,${input.joyActive ? 0.95 : 0.5})`;
+    ctx.beginPath();
+    ctx.arc(kx, ky, 20, 0, TAU);
+    ctx.fill();
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.restore();
+  }
+
+  // ── planning hint
+  if (P.state === 'planning') {
+    ctx.save();
+    ctx.textAlign = 'center';
+    ctx.font = '700 12px ui-monospace, monospace';
+    ctx.fillStyle = 'rgba(190,255,255,0.85)';
+    ctx.shadowColor = 'rgba(90,255,244,0.9)';
+    ctx.shadowBlur = 14;
+    ctx.fillText(isTouch ? 'STEER TO CURVE  ·  RELEASE TO LAUNCH' : 'A / D  CURVE  ·  SPACE  LAUNCH', W / 2, H - 42);
+    ctx.restore();
+  }
+
+  // ── opening hint
+  if (G.hintTimer > 0 && G.time < 12) {
+    const a = clamp(G.hintTimer / 3, 0, 1) * 0.75;
+    ctx.save();
+    ctx.textAlign = 'center';
+    ctx.font = '600 12px ui-monospace, monospace';
+    ctx.fillStyle = `rgba(150,190,215,${a})`;
+    ctx.fillText(
+      isTouch ? 'TAP AN ENEMY TO LOCK A TARGET' : 'CLICK AN ENEMY TO LOCK A TARGET',
+      W / 2, H - 78
+    );
+    ctx.restore();
+  }
+}
+
+/* ══════════════════════════════════════════════════════════
+   RENDER ROOT
+   ══════════════════════════════════════════════════════════ */
+function render() {
+  drawBackground();
+
+  const sx = G.shake > 0.2 ? (Math.random() - 0.5) * G.shake : 0;
+  const sy = G.shake > 0.2 ? (Math.random() - 0.5) * G.shake : 0;
+
+  ctx.save();
+  ctx.translate(sx, sy);
+
+  drawWalls();
+  drawEnemies();
+  drawProjectiles();
+  drawQueuedMarkers();
+  drawTrail();
+  drawPreview();
+  drawXMark();
+  drawPlayer();
+  drawParticles();
+
+  ctx.restore();
+
+  // screen flash
+  if (G.flash > 0.01) {
+    ctx.fillStyle = `rgba(${G.flashColor},${G.flash * 0.5})`;
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.fillRect(0, 0, W, H);
+    ctx.globalCompositeOperation = 'source-over';
+  }
+
+  if (G.state === 'playing' || G.state === 'over') drawHUD();
+}
+
+/* ══════════════════════════════════════════════════════════
+   GAME FLOW
+   ══════════════════════════════════════════════════════════ */
+const isTouch = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
+
+function resetGame(mode) {
+  G.mode = mode;
+  G.state = 'playing';
+  G.time = 0;
+  G.timeScale = 1;
+  G.hitStop = 0;
+  G.shake = 0;
+  G.flash = 0;
+  G.score = 0;
+  G.kills = 0;
+  G.enemies = [];
+  G.projectiles = [];
+  G.particles = [];
+  G.queued = [];
+  G.xmark = null;
+  G.spawnTimer = 1.0;
+  G.bossTimer = 42;
+  G.bossAlive = false;
+  G.arrowVisible = false;
+  G.hintTimer = 9;
+
+  P.x = W / 2;
+  P.y = H * 0.62;
+  P.vx = 0; P.vy = 0;
+  P.hp = P.maxHp = 100;
+  P.state = 'normal';
+  P.chain = 0;
+  P.maxChain = 0;
+  P.chainTimer = 0;
+  P.invuln = 0;
+  P.dashCd = 0;
+  P.emergencyCd = 0;
+  P.target = null;
+  P.steer = 0;
+  P.planTimer = 0;
+  P.joyUsedInPlan = false;
+  P.path = null;
+  P.pathDist = 0;
+  P.pathSpeed = 0;
+  P.trail = [];
+  P.spawnProtect = 1.2;
+  P.alive = true;
+
+  buildWalls();
+
+  // starting enemies
+  for (let i = 0; i < 3; i++) spawnEnemy();
+}
+
+function gameOver() {
+  G.state = 'over';
+  P.state = 'normal';
+  flash(0.9, '255,60,90');
+  shake(26);
+  ringBurst(P.x, P.y, 40, '255,90,120', 380, 3.5);
+  burst(P.x, P.y, 30, '255,255,255', 260, 2.5);
+
+  document.getElementById('finalScore').textContent = Math.floor(G.score);
+  document.getElementById('finalChain').textContent = P.maxChain;
+  document.getElementById('finalTime').textContent = Math.floor(G.time) + 's';
+  setTimeout(() => {
+    document.getElementById('over').classList.remove('hidden');
+  }, 550);
+}
+
+/* ══════════════════════════════════════════════════════════
+   MENU WIRING
+   ══════════════════════════════════════════════════════════ */
+document.querySelectorAll('[data-mode]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.getElementById('menu').classList.add('hidden');
+    document.getElementById('over').classList.add('hidden');
+    resetGame(btn.dataset.mode);
+  });
+});
+
+document.getElementById('retryBtn').addEventListener('click', () => {
+  document.getElementById('over').classList.add('hidden');
+  resetGame(G.mode);
+});
+
+document.getElementById('menuBtn').addEventListener('click', () => {
+  document.getElementById('over').classList.add('hidden');
+  document.getElementById('menu').classList.remove('hidden');
+  G.state = 'menu';
+  P.trail = [];
+});
+
+/* ══════════════════════════════════════════════════════════
+   MAIN LOOP
+   ══════════════════════════════════════════════════════════ */
+let lastT = performance.now();
+
+function loop(now) {
+  let dt = (now - lastT) / 1000;
+  lastT = now;
+  dt = Math.min(dt, 0.05);
+  G.frameTime = dt;
+
+  if (G.state === 'playing') {
+    update(dt);
+  } else if (G.state === 'over') {
+    // keep effects alive but freeze the world
+    updateParticles(dt * 0.6);
+    G.shake *= Math.exp(-6 * dt);
+    G.flash *= Math.exp(-7 * dt);
+    G.time += dt * 0.2;
+    if (G.xmark) { G.xmark.t += dt; if (G.xmark.t > G.xmark.life) G.xmark = null; }
+  } else {
+    // menu idle drift
+    G.time += dt * 0.4;
+    P.x = W / 2 + Math.cos(G.time * 0.6) * Math.min(W, H) * 0.16;
+    P.y = H / 2 + Math.sin(G.time * 0.85) * Math.min(W, H) * 0.12;
+    P.trail.push({ x: P.x, y: P.y, t: G.time });
+    if (P.trail.length > 30) P.trail.shift();
+    while (P.trail.length && G.time - P.trail[0].t > 0.32) P.trail.shift();
+    updateParticles(dt);
+    G.shake *= Math.exp(-6 * dt);
+    G.flash *= Math.exp(-7 * dt);
+  }
+
+  render();
+  requestAnimationFrame(loop);
+}
+
+/* ══════════════════════════════════════════════════════════
+   BOOT
+   ══════════════════════════════════════════════════════════ */
+window.addEventListener('resize', () => {
+  resize();
+  if (G.state === 'playing') {
+    P.x = clamp(P.x, P.r, W - P.r);
+    P.y = clamp(P.y, P.r, H - P.r);
+  }
+});
+window.addEventListener('orientationchange', () => setTimeout(resize, 120));
+
+resize();
+P.x = W / 2;
+P.y = H / 2;
+requestAnimationFrame(t => { lastT = t; loop(t); });
+
+})();
+</script>
 </body>
 </html>
